@@ -1,0 +1,91 @@
+{
+    "name": "SuccessResponse",
+    "status": 200,
+    "message": "Successfully fetched active policies",
+    "data": [
+        {
+            "id": "LPP-MPAEZ7",
+            "cdBalance": 707431.2763593085,
+            "nickName": "Tecknack Technologies Parent Policy",
+            "policyEndDate": "2/16/2025",
+            "insurerName": "ICICI Lombard",
+            "policyType": "GMC",
+            "policyPlacementStatus": "Handover to Ops",
+            "policyNumber": "4016/X/281624616/01/000",
+            "isTopUpPolicy": false,
+            "isParentalPolicy": true,
+            "isOPDPolicy": false,
+            "insurerLogo": "https://storage.googleapis.com/loophealthpatient.appspot.com/InsurerLogo/Icons/ICICI_lombard_logo_icon.png",
+            "isCdAccountPresent": true,
+            "employeeCount": 150,
+            "livesCount": 415,
+            "isRaterUploaded": true,
+            "sumInsuredStructure": "Flat Sum Insured",
+            "hasUniqueSumInsured": true,
+            "tpaName": "ICICI Lombard",
+            "sumAssuredSlabs": [
+                {
+                    "slabId": "1",
+                    "sumInsured": 300000,
+                    "familyDefinition": "Parents Only"
+                }
+            ]
+        },
+        {
+            "id": "LPP-B6KSKT",
+            "cdBalance": 707431.2763593085,
+            "nickName": "GMC Policy_Tecknack Technologies",
+            "policyEndDate": "12/16/2025",
+            "insurerName": "ICICI Lombard",
+            "policyType": "GMC",
+            "policyPlacementStatus": "Handover to Ops",
+            "policyNumber": "4016/X/273279638/02/000",
+            "isTopUpPolicy": false,
+            "isParentalPolicy": false,
+            "isOPDPolicy": false,
+            "insurerLogo": "https://storage.googleapis.com/loophealthpatient.appspot.com/InsurerLogo/Icons/ICICI_lombard_logo_icon.png",
+            "isCdAccountPresent": true,
+            "employeeCount": 149,
+            "livesCount": 252,
+            "isRaterUploaded": true,
+            "sumInsuredStructure": "Flat Sum Insured",
+            "hasUniqueSumInsured": true,
+            "tpaName": "ICICI Lombard",
+            "sumAssuredSlabs": [
+                {
+                    "slabId": "1",
+                    "sumInsured": 300000,
+                    "familyDefinition": "Self + Spouse + 4 Kids"
+                }
+            ]
+        },
+        {
+            "id": "LPP-NYJIMX",
+            "cdBalance": 707431.2763593085,
+            "nickName": "GPA Policy_Tecknack Technologies Pvt ltd",
+            "policyEndDate": "12/16/2025",
+            "insurerName": "ICICI Lombard",
+            "policyType": "GPA",
+            "policyPlacementStatus": "Handover to Ops",
+            "policyNumber": "4005/372678660/00/000",
+            "isTopUpPolicy": false,
+            "isParentalPolicy": false,
+            "isOPDPolicy": false,
+            "insurerLogo": "https://storage.googleapis.com/loophealthpatient.appspot.com/InsurerLogo/Icons/ICICI_lombard_logo_icon.png",
+            "isCdAccountPresent": true,
+            "employeeCount": 149,
+            "livesCount": 149,
+            "isRaterUploaded": true,
+            "sumInsuredStructure": "Flat Sum Insured",
+            "hasUniqueSumInsured": true,
+            "tpaName": "Not Applicable",
+            "sumAssuredSlabs": [
+                {
+                    "slabId": "1",
+                    "sumInsured": 500000,
+                    "familyDefinition": "Self"
+                }
+            ]
+        }
+    ]
+}
