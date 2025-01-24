@@ -10,6 +10,7 @@ import { DataTable } from "./DataTable";
 import { ADD_FIELDS, EDIT_FIELDS, OFFBOARD_FIELDS, GENOME_FIELDS } from '../config';
 import { AlertTriangle, PartyPopper, Info, CheckCircle2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { MismatchSummaryCards } from './MismatchSummaryCards';
 
 interface SummaryList {
   members: any[];
@@ -77,7 +78,7 @@ export function SummaryTab({ reconData }: SummaryTabProps) {
     const padding = 60;
     
     const calculatedHeight = headerHeight + (rowHeight * recordCount) + padding;
-    return Math.max(minHeight, Math.min(calculatedHeight, 600));
+    return Math.max(minHeight, Math.min(calculatedHeight, 660));
   };
 
   const handleDownload = (data: any[]) => {
@@ -87,9 +88,25 @@ export function SummaryTab({ reconData }: SummaryTabProps) {
     XLSX.writeFile(workbook, 'summary-data.xlsx');
   };
 
+  const getMismatchSummary = (editData: any[]): MismatchSummary[] => {
+    const fieldCounts = new Map<string, number>();
+    
+    editData.forEach(record => {
+      const fields = record.mismatch_fields?.split(', ') || [];
+      fields.forEach((field) => {
+        fieldCounts.set(field, (fieldCounts.get(field) || 0) + 1);
+      });
+    });
+  
+    return Array.from(fieldCounts.entries()).map(([field, count]) => ({
+      field,
+      count
+    }));
+  };
+
   const renderSection = (title: string, lists: SummaryList[], fields: any[], sectionType:string) => {
     if (lists.length === 0) return null;
-
+    const mismatchSummary = getMismatchSummary(reconData.tobeEndorsed_edit?.members || []);
     return (
       <div className="space-y-4 -mt-6">
         <h3 className="text-xl font-semibold">{title}</h3>
@@ -152,6 +169,9 @@ export function SummaryTab({ reconData }: SummaryTabProps) {
                       </div>
                     </div>
                   </div>
+                )}
+                {title === 'Corrections' && mismatchSummary.length > 0 && (
+                  <MismatchSummaryCards mismatches={mismatchSummary} />
                 )}
                 <div 
                   className="overflow-hidden"

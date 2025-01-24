@@ -289,10 +289,34 @@ export const ADD_FIELDS: Field[] = [
 ];
 
 export const EDIT_FIELDS: Field[] = [
+  {
+    key: "user_id",
+    label: "User ID",
+    type: "string",
+    isMandatory: false
+  },
   ...ADD_FIELDS?.filter((i) => i?.key !== 'remark'),
   {
-    key: "mismatch",
-    label: "Mismatch",
+    key: "mismatch_fields",
+    label: "Mismatch Fields",
+    type: "string",
+    isMandatory: false
+  },
+  {
+    key: "hr_values",
+    label: "HR Values",
+    type: "string",
+    isMandatory: false
+  },
+  {
+    key: "insurer_values",
+    label: "Insurer Values",
+    type: "string",
+    isMandatory: false
+  },
+  {
+    key: "genome_values",
+    label: "Genome Values",
     type: "string",
     isMandatory: false
   }
@@ -303,7 +327,7 @@ export const OFFBOARD_FIELDS: Field[] = [
     key: "user_id",
     label: "User ID",
     type: "string",
-    isMandatory: true
+    isMandatory: false
   },
   {
     key: "employee_id",

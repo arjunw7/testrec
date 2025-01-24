@@ -51,7 +51,7 @@ export const validateRecord = (record: any, context: ValidationContext): Validat
 
   // Check for duplicate key only if it's in the duplicates set
   const uniqueKey = `${record.employee_id}_${record.name}_${record?.relationship}`.toLowerCase();
-  if (context.duplicateKeys.has(uniqueKey) && context.source !== 'genome') {
+  if (context.duplicateKeys.has(uniqueKey) && !['genome', 'insurer'].includes(context.source)) {
     errors.push({
       field: 'employee_id',
       message: 'Duplicate Employee ID + Name + Relationship combination found'
@@ -60,8 +60,7 @@ export const validateRecord = (record: any, context: ValidationContext): Validat
 
   // Name validation
   if (record.name) {
-    if(context.source !== 'genome') {
-      const normalizedName = record?.name?.toString()?.toLowerCase()?.trim();
+    const normalizedName = record?.name?.toString()?.toLowerCase()?.trim();
       if (!NAME_REGEX.test(record.name)) {
         errors.push({
           field: 'name',
@@ -73,8 +72,7 @@ export const validateRecord = (record: any, context: ValidationContext): Validat
           field: 'name',
           message: 'Name should not start with titles (Mr, Mrs, Miss, etc)'
         });
-      } 
-    }
+      }
   } else {
     errors.push({
         field: 'name',
@@ -83,7 +81,7 @@ export const validateRecord = (record: any, context: ValidationContext): Validat
   }
 
   // Gender validation
-  if (record.gender && !VALID_GENDERS.includes(record?.gender?.toString()?.toUpperCase())) {
+  if (record.gender && !VALID_GENDERS.includes(record?.gender?.toString()?.toUpperCase()) && !['offboard'].includes(context.source)) {
     errors.push({
       field: 'gender',
       message: 'Gender must be either Male or Female'
@@ -93,7 +91,7 @@ export const validateRecord = (record: any, context: ValidationContext): Validat
   // Relationship validation
   if (record.relationship) {
     const normalizedRelationship = normalizeRelationship(record.relationship);
-    if (!VALID_RELATIONSHIPS.includes(normalizedRelationship) && context.source !== 'genome') {
+    if (!VALID_RELATIONSHIPS.includes(normalizedRelationship)) {
       errors.push({
         field: 'relationship',
         message: 'Invalid relationship value'
@@ -141,14 +139,14 @@ export const validateRecord = (record: any, context: ValidationContext): Validat
   }
 
   // Contact information validation
-  if (record.mobile && !MOBILE_REGEX.test(record.mobile) && context.source !== 'genome') {
+  if (record.mobile && !MOBILE_REGEX.test(record.mobile) && !['genome', 'insurer', 'offboard'].includes(context.source)) {
     errors.push({
       field: 'mobile',
       message: 'Invalid mobile number format (10 digits required)'
     });
   }
 
-  if (record.email_address && !EMAIL_REGEX.test(record.email_address) && context.source !== 'genome') {
+  if (record.email_address && !EMAIL_REGEX.test(record.email_address) && !['genome', 'insurer', 'offboard'].includes(context.source)) {
     errors.push({
       field: 'email_address',
       message: 'Invalid email format'
@@ -156,21 +154,23 @@ export const validateRecord = (record: any, context: ValidationContext): Validat
   }
 
   // Sum Insured validation
-  if (record.sum_insured) {
-    const sumInsuredExists = context.slabMapping.some(
-      slab => Number(slab.sum_insured) === Number(record.sum_insured)
-    );
-    if (!sumInsuredExists && context.source !== 'genome') {
+  if(!['add', 'edit', 'offboard'].includes(context?.source)) {
+    if (record.sum_insured) {
+      const sumInsuredExists = context.slabMapping.some(
+        slab => Number(slab.sum_insured) === Number(record.sum_insured)
+      );
+      if (!sumInsuredExists && !['genome'].includes(context.source)) {
+        errors.push({
+          field: 'sum_insured',
+          message: 'Sum insured value does not match any predefined slab'
+        });
+      }
+    } else {
       errors.push({
-        field: 'sum_insured',
-        message: 'Sum insured value does not match any predefined slab'
-      });
+          field: 'sum_insured',
+          message: 'Sum insured is mandatory'
+        });
     }
-  } else {
-    errors.push({
-        field: 'sum_insured',
-        message: 'Sum insured is mandatory'
-      });
   }
 
   // CTC validation

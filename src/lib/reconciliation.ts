@@ -43,85 +43,69 @@ const normalizeFieldValue = (field: string, value: any): string => {
 };
 
 // Create multiple keys for matching records
-const createMatchingKeys = (record: any): string[] => {
+const createMatchingKeys = (record: any, policyType: any): string[] => {
   const keys = [];
   
-  // Key 1: EID + name + gender + DOB + relationship
-  keys.push([
-    'employee_id',
-    'name',
-    'gender',
-    'date_of_birth_dd_mmm_yyyy',
-    'relationship'
-  ].map(field => normalizeFieldValue(field, record[field])).join('|'));
-  
-  // Key 2: EID + name + gender + DOB + sum insured
-  keys.push([
-    'employee_id',
-    'name',
-    'gender',
-    'date_of_birth_dd_mmm_yyyy',
-    'sum_insured'
-  ].map(field => normalizeFieldValue(field, record[field])).join('|'));
-  
-  // Key 3: EID + name + gender + relationship + sum insured
-  keys.push([
-    'employee_id',
-    'name',
-    'gender',
-    'relationship',
-    'sum_insured'
-  ].map(field => normalizeFieldValue(field, record[field])).join('|'));
+  if(policyType === 'GMC') {
+    // Key 1: EID + name + gender + DOB + relationship
+    keys.push(['employee_id','name','gender','date_of_birth_dd_mmm_yyyy','relationship']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
+    
+    // Key 2: EID + name + gender + DOB + sum insured
+    keys.push(['employee_id','name','gender','date_of_birth_dd_mmm_yyyy','sum_insured']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
+    
+    // Key 3: EID + name + gender + relationship + sum insured
+    keys.push(['employee_id','name','gender','relationship','sum_insured']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
 
-  // Key 4: EID + name + dob + relationship + sum insured
-  keys.push([
-    'employee_id',
-    'name',
-    'date_of_birth_dd_mmm_yyyy',
-    'relationship',
-    'sum_insured'
-  ].map(field => normalizeFieldValue(field, record[field])).join('|'));
+    // Key 4: EID + name + dob + relationship + sum insured
+    keys.push(['employee_id','name','date_of_birth_dd_mmm_yyyy','relationship','sum_insured']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
 
-  // Key 5: EID + gender + dob + relationship + sum insured
-  keys.push([
-    'employee_id',
-    'gender',
-    'date_of_birth_dd_mmm_yyyy',
-    'relationship',
-    'sum_insured'
-  ].map(field => normalizeFieldValue(field, record[field])).join('|'));
+    // Key 5: EID + gender + dob + relationship + sum insured
+    keys.push(['employee_id','gender','date_of_birth_dd_mmm_yyyy','relationship','sum_insured']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
 
-  // Key 6: name + gender + dob + relationship + sum insured
-  keys.push([
-    'name',
-    'gender',
-    'date_of_birth_dd_mmm_yyyy',
-    'relationship',
-    'sum_insured'
-  ].map(field => normalizeFieldValue(field, record[field])).join('|'));
+    // Key 6: name + gender + dob + relationship + sum insured
+    keys.push(['name','gender','date_of_birth_dd_mmm_yyyy','relationship','sum_insured']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
 
-  // Key 7: name + gender + relationship + sum insured
-  keys.push([
-    'name',
-    'gender',
-    'relationship',
-    'sum_insured'
-  ].map(field => normalizeFieldValue(field, record[field])).join('|'));
+    // Key 7: name + gender + relationship + sum insured
+    keys.push(['name','gender','relationship','sum_insured']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
 
-  // Key 8: name +  dob + relationship + sum insured
-  keys.push([
-    'name',
-    'date_of_birth_dd_mmm_yyyy',
-    'relationship',
-    'sum_insured'
-  ].map(field => normalizeFieldValue(field, record[field])).join('|'));
+    // Key 8: name +  dob + relationship + sum insured
+    keys.push(['name','date_of_birth_dd_mmm_yyyy','relationship','sum_insured']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
+  } else {
+    // Key 1: name + gender + sum_insured + ctc -> eid
+    keys.push(['name','gender','sum_insured','ctc']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
 
+    // Key 2: employee_id + gender + sum_insured + ctc -> name
+    keys.push(['employee_id','gender','sum_insured','ctc']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
+     
+    // Key 3: employee_id + name + sum_insured + ctc -> gender
+    keys.push(['employee_id','name','sum_insured','ctc']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
+
+    // Key 4: employee_id + name + gender + sum_insured -> ctc
+    keys.push(['employee_id','name','gender', 'sum_insured']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
+
+    // Key 5: employee_id + name + gender + ctc
+    keys.push(['employee_id','name','gender','ctc']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
+    
+  }
   return keys;
 };
 
 // Function to find matching record using multiple keys
-const findMatchingRecord = (record: any, records: Map<string, any>[]): any => {
-  const keys = createMatchingKeys(record);
+const findMatchingRecord = (record: any, records: Map<string, any>[], policyType: any): any => {
+  const keys = createMatchingKeys(record, policyType);
   for (const key of keys) {
     for (const recordMap of records) {
       const match = recordMap.get(key);
@@ -155,8 +139,17 @@ const calculateSlabId = (sumInsured: number, slabMapping: SlabMapping[]) => {
 };
 
 const compareFields = (hrRecord: any, insurerRecord: any, genomeRecord: any, policyType?: string) => {
-  const mismatches: string[] = [];
-  console.log('policyType', policyType)
+  const mismatches: {
+    fields: string[];
+    hr: string[];
+    insurer: string[];
+    genome: string[];
+  } = {
+    fields: [],
+    hr: [],
+    insurer: [],
+    genome: []
+  };
   const fieldsToCompare = policyType === 'GMC' ? [
     { key: 'name', label: 'Name', normalize: (value: string) => value?.toString()?.trim()?.toLowerCase() },
     { key: 'employee_id', label: 'Employee ID', normalize: (value: string) => value?.toString()?.trim()?.toLowerCase() },
@@ -189,17 +182,18 @@ const compareFields = (hrRecord: any, insurerRecord: any, genomeRecord: any, pol
       if (values.hr && values.insurer && values.genome) {
         const allMatch = values.hr === values.insurer && values.insurer === values.genome;
         if (!allMatch) {
-          mismatches.push(
-            `${field.label}: HR=${hrRecord[field.key]}, Insurer=${insurerRecord[field.key]}, Genome=${genomeRecord[field.key]}`
-          );
+          mismatches.fields.push(field.label);
+          mismatches.hr.push(hrRecord[field.key]?.toString()?.toProperCase());
+          mismatches.insurer.push(insurerRecord[field.key]?.toString()?.toProperCase());
+          mismatches.genome.push(genomeRecord[field.key]?.toString()?.toProperCase());
         }
       }
     } else {
       // 2-way comparison between Insurer and Genome when no HR data
       if (values.insurer && values.genome && values.insurer !== values.genome) {
-        mismatches.push(
-          `${field.label}: Insurer=${insurerRecord[field.key]}, Genome=${genomeRecord[field.key]}`
-        );
+        mismatches.fields.push(field.label);
+        mismatches.insurer.push(insurerRecord[field.key]?.toString()?.toProperCase());
+        mismatches.genome.push(genomeRecord[field.key]?.toString()?.toProperCase());
       }
     }
   });
@@ -279,7 +273,7 @@ export const reconcileData = (
   // Create maps for each key type for each dataset
   const hrMaps = hrData.map(record => {
     const maps: Map<string, any>[] = [];
-    createMatchingKeys(record).forEach(key => {
+    createMatchingKeys(record, policyType).forEach(key => {
       const map = new Map();
       map.set(key, record);
       maps.push(map);
@@ -289,7 +283,7 @@ export const reconcileData = (
 
   const insurerMaps = insurerData.map(record => {
     const maps: Map<string, any>[] = [];
-    createMatchingKeys(record).forEach(key => {
+    createMatchingKeys(record, policyType).forEach(key => {
       const map = new Map();
       map.set(key, record);
       maps.push(map);
@@ -299,7 +293,7 @@ export const reconcileData = (
 
   const genomeMaps = genomeData.map(record => {
     const maps: Map<string, any>[] = [];
-    createMatchingKeys(record).forEach(key => {
+    createMatchingKeys(record, policyType).forEach(key => {
       const map = new Map();
       map.set(key, record);
       maps.push(map);
@@ -331,24 +325,32 @@ export const reconcileData = (
   // Process HR data if available
   if (hrData.length > 0) {
     hrData.forEach(hrRecord => {
-      const insurerRecord = findMatchingRecord(hrRecord, insurerMaps);
-      const genomeRecord = findMatchingRecord(hrRecord, genomeMaps);
+      const insurerRecord = findMatchingRecord(hrRecord, insurerMaps, policyType);
+      const genomeRecord = findMatchingRecord(hrRecord, genomeMaps, policyType);
 
       if (insurerRecord && genomeRecord) {
         const mismatches = compareFields(hrRecord, insurerRecord, genomeRecord, policyType);
-        if (mismatches.length > 0) {
+        if (mismatches.fields?.length > 0) {
           dataMismatch.push({
             ...hrRecord,
+            user_id: genomeRecord?.user_id,
             slab_id: calculateSlabId(Number(hrRecord.sum_insured), slabMapping),
-            mismatch: mismatches.join('; ')
+            mismatch_fields: mismatches.fields.join(', '),
+            hr_values: mismatches.hr.join(', '),
+            insurer_values: mismatches.insurer.join(', '),
+            genome_values: mismatches.genome.join(', ')
           });
           tobeEndorsed_edit.members.push({
             ...hrRecord,
+            user_id: genomeRecord?.user_id,
             slab_id: calculateSlabId(Number(hrRecord.sum_insured), slabMapping),
-            mismatch: mismatches.join('; ')
+            mismatch_fields: mismatches.fields.join(', '),
+            hr_values: mismatches.hr.join(', '),
+            insurer_values: mismatches.insurer.join(', '),
+            genome_values: mismatches.genome.join(', ')
           });
         }
-        if (mismatches.length === 0) {
+        if (mismatches.fields?.length === 0) {
           perfectlyMatchedMembers.push({
             ...hrRecord,
             slab_id: calculateSlabId(Number(hrRecord.sum_insured), slabMapping)
@@ -392,23 +394,28 @@ export const reconcileData = (
   } else {
     // When no HR data, check mismatches between Insurer and Genome
     insurerData.forEach(insurerRecord => {
-      const genomeRecord = findMatchingRecord(insurerRecord, genomeMaps);
-      
+      const genomeRecord = findMatchingRecord(insurerRecord, genomeMaps, policyType);
       if (genomeRecord) {
         const mismatches = compareFields(null, insurerRecord, genomeRecord, policyType);
-        if (mismatches.length > 0) {
+        if (mismatches.fields?.length > 0) {
           dataMismatch.push({
             ...genomeRecord,
             slab_id: calculateSlabId(Number(genomeRecord.sum_insured), slabMapping),
-            mismatch: mismatches.join('; ')
+            mismatch_fields: mismatches.fields.join(', '),
+            hr_values: mismatches.hr.join(', '),
+            insurer_values: mismatches.insurer.join(', '),
+            genome_values: mismatches.genome.join(', ')
           });
           tobeEndorsed_edit.members.push({
             ...genomeRecord,
             slab_id: calculateSlabId(Number(genomeRecord.sum_insured), slabMapping),
-            mismatch: mismatches.join('; ')
+            mismatch_fields: mismatches.fields.join(', '),
+            hr_values: mismatches.hr.join(', '),
+            insurer_values: mismatches.insurer.join(', '),
+            genome_values: mismatches.genome.join(', ')
           });
         }
-        if (mismatches.length === 0) {
+        if (mismatches.fields?.length === 0) {
           perfectlyMatchedMembers.push({
             ...genomeRecord,
             slab_id: calculateSlabId(Number(genomeRecord.sum_insured), slabMapping)
@@ -421,8 +428,8 @@ export const reconcileData = (
   // Handle offboarding scenarios
   insurerData.forEach(insurerRecord => {
     if (hrData.length > 0) {
-      const inHR = findMatchingRecord(insurerRecord, hrMaps);
-      const inGenome = findMatchingRecord(insurerRecord, genomeMaps);
+      const inHR = findMatchingRecord(insurerRecord, hrMaps, policyType);
+      const inGenome = findMatchingRecord(insurerRecord, genomeMaps, policyType);
   
       if (!inHR && inGenome && !isDuplicate(insurerRecord, offboardSheet)) {
         if (!offboardKeys.has(createUniqueKey(insurerRecord))) {
@@ -446,42 +453,48 @@ export const reconcileData = (
         toBeEndorsed_offboard_conf_manual.members.push(offboardRecord);
       }
     } else {
-      const inGenome = findMatchingRecord(insurerRecord, genomeMaps);
+      const inGenome = findMatchingRecord(insurerRecord, genomeMaps, policyType);
       if (!inGenome) {
-        const offboardRecord = {
-          ...insurerRecord,
-          slab_id: calculateSlabId(Number(insurerRecord.sum_insured), slabMapping),
-          remark: 'LOOP❌, IC✅'
-        };
-        offboardSheet2.push(offboardRecord);
-        toBeEndorsed_offboard_conf_manual.members.push(offboardRecord);
+        if (!addKeys.has(createUniqueKey(insurerRecord))) {
+          const newRecord = {
+            ...insurerRecord,
+            slab_id: calculateSlabId(Number(insurerRecord.sum_insured), slabMapping),
+            remark: 'LOOP❌, IC✅'
+          };
+          addData.push(newRecord);
+          addKeys.add(createUniqueKey(insurerRecord));
+          tobeEndorsed_add_manual.members.push(newRecord);
+        }
+        
       }
     }
   });
 
   genomeData.forEach(genomeRecord => {
     if (hrData?.length > 0) {
-      const inHR = findMatchingRecord(genomeRecord, hrMaps);
-      const inInsurer = findMatchingRecord(genomeRecord, insurerMaps);
-      if (!inHR && !inInsurer && !offboardSheet2.some(r => createUniqueKey(r) === createUniqueKey(genomeRecord))) {
-        const offboardRecord = {
+      const inHR = findMatchingRecord(genomeRecord, hrMaps, policyType);
+      const inInsurer = findMatchingRecord(genomeRecord, insurerMaps, policyType);
+      if (!inHR && !inInsurer && !addKeys.has(createUniqueKey(genomeRecord))) {
+        const newRecord = {
           ...genomeRecord,
           slab_id: calculateSlabId(Number(genomeRecord.sum_insured), slabMapping),
           remark: 'HR❌, LOOP✅, IC❌'
         };
-        offboardSheet2.push(offboardRecord);
-        toBeEndorsed_offboard_or_add.members.push(offboardRecord);
+        addData.push(newRecord);
+        addKeys.add(createUniqueKey(genomeRecord));
+        toBeEndorsed_offboard_or_add.members.push(newRecord);
       }
     } else {
-      const inInsurer = findMatchingRecord(genomeRecord, insurerMaps);
-      if (!inInsurer && !offboardSheet2.some(r => createUniqueKey(r) === createUniqueKey(genomeRecord))) {
-        const offboardRecord = {
+      const inInsurer = findMatchingRecord(genomeRecord, insurerMaps, policyType);
+      if (!inInsurer && !addKeys.has(createUniqueKey(genomeRecord))) {
+        const newRecord = {
           ...genomeRecord,
           slab_id: calculateSlabId(Number(genomeRecord.sum_insured), slabMapping),
           remark: 'LOOP✅, IC❌'
         };
-        offboardSheet2.push(offboardRecord);
-        toBeEndorsed_offboard_or_add.members.push(offboardRecord);
+        addData.push(newRecord);
+        addKeys.add(createUniqueKey(genomeRecord));
+        toBeEndorsed_offboard_or_add.members.push(newRecord);
       }
     }
   });

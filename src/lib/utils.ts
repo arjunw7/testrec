@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { ValidationResult } from "./validation";
  
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -218,3 +219,34 @@ export function formatDateToMMM(date: string): string {
   
   return `${day}/${months[parseInt(month) - 1]}/${year}`;
 }
+
+export const createLookupKey = (record: any): string => {
+  return `${record.employee_id?.toString()?.toLowerCase()?.trim()}_${record.name?.toString()?.toLowerCase()?.trim()}_${normalizeRelationship(record.relationship)?.toLowerCase()}`;
+};
+
+
+
+export const sanitizeName = (name: string): string => {
+  if (!name) return '';
+  
+  // Remove any titles (Mr., Mrs., etc)
+  const withoutTitles = name.replace(/^(mr\.|mrs\.|ms\.|dr\.|miss\.|prof\.)?\s*/i, '');
+  
+  // Convert to proper case and remove any special characters
+  return withoutTitles
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, '') // Remove special characters
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+    .trim();
+};
+
+export const hasNameErrors = (validationResults: Map<number, ValidationResult>): boolean => {
+  for (const [_, result] of validationResults) {
+    if (result.errors.some(error => error.field === 'name')) {
+      return true;
+    }
+  }
+  return false;
+};

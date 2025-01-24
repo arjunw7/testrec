@@ -79,7 +79,10 @@ export function Header({ company, policy, onRestart, onReconData, onReset, hasRe
         'Gender': member.gender,
         'CTC': member.ctc,
         'Exception': '',
-        'Mismatch': member.mismatch
+        'Mismatch Fields': member.mismatch_fields,
+        'HR Values': member.hr_values,
+        'Insurer Values': member.insurer_values,
+        'Genome Values': member.genome_values,
       }));
       
       const editSheet = XLSX.utils.json_to_sheet(editData);

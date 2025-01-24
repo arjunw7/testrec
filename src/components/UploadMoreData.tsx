@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import { formatToStandardDate, formatDate, normalizeRelationship, excelDateToJSDate } from '@/lib/utils';
+import { formatToStandardDate, formatDate, normalizeRelationship, excelDateToJSDate, createLookupKey } from '@/lib/utils';
 import { useWorkflow } from '../context/WorkflowContext';
 import { Field } from '@/types';
 
@@ -38,12 +38,14 @@ export const UploadMoreData: React.FC<UploadMoreDataProps> = ({ onDataUploaded, 
   const [rawData, setRawData] = useState<any[]>([]);
   const [mapping, setMapping] = useState<{ [key: string]: string }>({});
   const [mappedData, setMappedData] = useState<any[]>([]);
-  const { slabMapping } = useWorkflow();
+  const { slabMapping, dataSources } = useWorkflow();
+  const [autoMapDependentSumInsured, setAutoMapDependentSumInsured] = useState(false);
+
   const processExcelFile = (workbook: XLSX.WorkBook, sheetName: string) => {
     const worksheet = workbook.Sheets[sheetName];
     const data = XLSX.utils.sheet_to_json(worksheet);
     if (data.length > 0) {
-      const headers = Object.keys(data?.[0]);
+      const headers = Object.keys(data[0]);
       setHeaders(headers);
       setRawData(data);
       setShowMapper(true);
@@ -103,36 +105,97 @@ export const UploadMoreData: React.FC<UploadMoreDataProps> = ({ onDataUploaded, 
   const handleMappingChange = (newMapping: { [key: string]: string }) => {
     setMapping(newMapping);
     
-    // Transform the data but don't upload yet
+    // Get genome data for user_id lookup if available
+    const genomeLookup = new Map(
+      dataSources?.genome?.data?.map(record => [
+        createLookupKey(record),
+        record.user_id
+      ])
+    );
+
+    // Group records by employee ID to find primary members
+    const employeeGroups = new Map<string, any>();
     const transformedData = rawData.map(row => {
       const transformedRow: any = {};
       fields.forEach(field => {
         const sourceColumn = newMapping[field.key];
         if (sourceColumn) {
           let value = row[sourceColumn];
+          
           if (field.type === 'date' && value) {
-            console.log('value', value);
-            value = formatToStandardDate(value);
-          }
-          // Initialize slab_id for genome and insurer data
-          if (field.key === 'sum_insured') {
-            const matchingSlab = slabMapping?.find(
-              (slab) => Number(slab.sum_insured) === Number(value)
-            );
-            if (matchingSlab) {
-              transformedRow['slab_id'] = matchingSlab.slab_id;
+            if (typeof value === 'number') {
+              value = excelDateToJSDate(value);
+            } else {
+              value = formatDate(value);
             }
           }
-          if(field?.key === "relationship") {
+
+          if (field.key === "relationship") {
             transformedRow[field.key] = normalizeRelationship(value);
+          }
+          else if (field.key === 'gender') {
+            let updatedGender = '';
+            if (['MALE', 'M'].includes(value?.toUpperCase())) updatedGender = 'Male';
+            if (['FEMALE', 'F'].includes(value?.toUpperCase())) updatedGender = 'Female';
+            transformedRow[field.key] = updatedGender;
+          }
+          else if (field.key === 'sum_insured') {
+            transformedRow[field.key] = value;
+            transformedRow['slab_id'] = slabMapping?.find(
+              (slab) => Number(slab.sum_insured) === Number(value)
+            )?.slab_id;
+            // Store primary member sum insured
+            if (transformedRow.relationship === 'SELF') {
+              employeeGroups.set(transformedRow.employee_id, value);
+            }
           }
           else {
             transformedRow[field.key] = value;
+          }
+
+          // Add user_id lookup for offboard and edit
+          if (field.key === 'user_id' && !value) {
+            const lookupKey = createLookupKey(transformedRow);
+            const userId = genomeLookup.get(lookupKey);
+            if (userId) {
+              transformedRow.user_id = userId;
+            }
+          }
+
+          // Add remarks based on source
+          if (field.key === 'remark') {
+            if (fields === ADD_FIELDS) {
+              transformedRow.remark = 'Extra HR Addition';
+            } else if (fields === OFFBOARD_FIELDS) {
+              transformedRow.remark = 'Extra HR Deletion';
+            } else if (fields === EDIT_FIELDS) {
+              transformedRow.remark = 'Extra HR Correction';
+            }
           }
         }
       });
       return transformedRow;
     });
+
+    // If auto-mapping is enabled, update dependent sum insured
+    if (autoMapDependentSumInsured) {
+      transformedData.forEach(row => {
+        if (row.relationship !== 'SELF' && row.employee_id) {
+          const primarySumInsured = employeeGroups.get(row.employee_id);
+          if (primarySumInsured) {
+            row.sum_insured = primarySumInsured;
+            
+            // Update slab ID if needed
+            const matchingSlab = slabMapping?.find(
+              (slab) => Number(slab.sum_insured) === Number(primarySumInsured)
+            );
+            if (matchingSlab) {
+              row.slab_id = matchingSlab.slab_id;
+            }
+          }
+        }
+      });
+    }
 
     setMappedData(transformedData);
   };

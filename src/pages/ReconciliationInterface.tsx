@@ -28,7 +28,9 @@ import { WorkflowProvider, useWorkflow } from '../context/WorkflowContext';
 import { normalizeRelationship, formatToStandardDate, formatDate, excelDateToJSDate } from '../lib/utils';
 import { validateDataSet } from '../lib/validation';
 import { cn } from '@/lib/utils';
-import { isRequiredDataAvailable } from '@/lib/utils';
+import { isRequiredDataAvailable, createLookupKey, sanitizeName,hasNameErrors } from '@/lib/utils';
+import { SanitizeNamesButton } from '../components/SanitizeNamesButton';
+
 
 
 import * as XLSX from 'xlsx';
@@ -368,35 +370,12 @@ function ReconciliationInterfaceContent() {
         }));
         setActiveTab('summary');
         setIsReconciling(false);
-      }, 100);
+      }, 5000);
     } catch (error) {
       console.error('Reconciliation failed:', error);
       setIsReconciling(false);
     }
-  
-
-
     
-  };
-
-  const handleDownload = (format: 'xlsx' | 'csv') => {
-    const activeData = dataSources[activeTab];
-    if (!activeData) return;
-
-    const worksheet = XLSX.utils.json_to_sheet(activeData.data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, activeTab);
-
-    if (format === 'xlsx') {
-      XLSX.writeFile(workbook, `${activeTab}_data.xlsx`);
-    } else {
-      const csv = XLSX.utils.sheet_to_csv(worksheet);
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `${activeTab}_data.csv`;
-      link.click();
-    }
   };
 
   const handleSearch = (tab: string, value: string) => {
@@ -407,17 +386,11 @@ function ReconciliationInterfaceContent() {
   };
 
   const handleFileUpload = (source: string) => (headers: string[], rawData: any[], autoMapDependentSI) => {
-    // Normalize relationships in the data
-    const normalizedData = rawData.map(row => ({
-      ...row,
-      relationship: normalizeRelationship(row.relationship)
-    }));
-
     setDataSources((prev) => ({
       ...prev,
       [source]: {
         headers,
-        rawData: normalizedData,
+        rawData,
         data: [],
         mapping: {},
         fields: source === 'hr' ? HR_FIELDS :
@@ -433,10 +406,17 @@ function ReconciliationInterfaceContent() {
   };
 
   const handleMappingChange = (source: string, mapping: { [key: string]: string }) => {
+    
+    const genomeLookup = new Map(
+      dataSources.genome.data.map(record => [
+        createLookupKey(record),
+        record.user_id
+      ])
+    );
+
     setDataSources((prev) => {
       const dataSource = prev[source];
       if (!dataSource) return prev;
-
       // Group records by employee ID to find primary members
       const employeeGroups = new Map<string, any>();
       const transformedData = dataSource.rawData.map(row => {
@@ -453,7 +433,6 @@ function ReconciliationInterfaceContent() {
                 value = formatDate(value);
               }
             }
-
             if (field.key === "relationship") {
               transformedRow[field.key] = normalizeRelationship(value);
             }
@@ -475,6 +454,24 @@ function ReconciliationInterfaceContent() {
             }
             else {
               transformedRow[field.key] = value;
+            }
+            if(source === 'offboard' || source === 'edit'){
+              if (row.user_id) {
+                transformedRow.user_id = row.user_id;
+              } else {
+                const lookupKey = createLookupKey(transformedRow);
+                const userId = genomeLookup.get(lookupKey);
+                if (userId) {
+                  transformedRow.user_id = userId;
+                }
+              }
+            }
+            if(source === 'add') {
+              transformedRow.remark = 'Extra HR Addition'
+            } else if(source === 'offboard') {
+              transformedRow.remark = 'Extra HR Deletion'
+            } else if(source === 'edit') {
+              transformedRow.remark = 'Extra HR Correctio'
             }
           }
         });
@@ -522,6 +519,26 @@ function ReconciliationInterfaceContent() {
     }));
   };
 
+  const handleSanitizeNames = (source: string) => {
+    setDataSources(prev => {
+      const sourceData = prev[source];
+      if (!sourceData) return prev;
+  
+      const updatedData = sourceData.data.map(record => ({
+        ...record,
+        name: sanitizeName(record.name)
+      }));
+  
+      return {
+        ...prev,
+        [source]: {
+          ...sourceData,
+          data: updatedData
+        }
+      };
+    });
+  };
+
   if (loadingRoster) {
     return <LoadingScreen />;
   }
@@ -564,7 +581,6 @@ function ReconciliationInterfaceContent() {
             </div>
           </div>
         </div>
-        <LoadingDialog isOpen={isReconciling} />
       </div>
     );
   }
@@ -660,26 +676,34 @@ function ReconciliationInterfaceContent() {
                         {source === 'edit' && 'Edit Records'}
                         {source === 'offboard' && 'Offboard Records'}
                       </h3>
-                      {dataSources[source] && ['hr', 'insurer'].includes(source) && (
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              setDataSources(prev => ({
-                                ...prev,
-                                [source]: null
-                              }));
-                            }}
-                            className="gap-2"
-                          >
-                            <Upload className="w-4 h-4" />
-                            Reupload
-                          </Button>
-                          <Button onClick={() => setShowMapper(source)}>
-                            Edit Mapping
-                          </Button>
-                        </div>
-                      )}
+                      <div className="flex gap-2">
+                        {['hr', 'insurer', 'genome'].includes(source) && 
+                          dataSources[source] && 
+                          validateDataSet(dataSources[source]!.data, slabMapping, source) &&
+                          hasNameErrors(validateDataSet(dataSources[source]!.data, slabMapping, source)) && (
+                          <SanitizeNamesButton onClick={() => handleSanitizeNames(source)} />
+                        )}
+                        {dataSources[source] && ['hr', 'insurer'].includes(source) && (
+                          <>
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                setDataSources(prev => ({
+                                  ...prev,
+                                  [source]: null
+                                }));
+                              }}
+                              className="gap-2"
+                            >
+                              <Upload className="w-4 h-4" />
+                              Reupload
+                            </Button>
+                            <Button onClick={() => setShowMapper(source)}>
+                              Edit Mapping
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
 
                     {!dataSources[source] ? (
@@ -749,6 +773,7 @@ function ReconciliationInterfaceContent() {
         isOpen={showInsurerWarning}
         onClose={() => setShowInsurerWarning(false)}
       />
+      <LoadingDialog isOpen={isReconciling} />
     </div>
   );
 }
