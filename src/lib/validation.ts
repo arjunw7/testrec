@@ -159,7 +159,7 @@ export const validateRecord = (record: any, context: ValidationContext): Validat
       const sumInsuredExists = context.slabMapping.some(
         slab => Number(slab.sum_insured) === Number(record.sum_insured)
       );
-      if (!sumInsuredExists && !['genome'].includes(context.source)) {
+      if (!sumInsuredExists) {
         errors.push({
           field: 'sum_insured',
           message: 'Sum insured value does not match any predefined slab'

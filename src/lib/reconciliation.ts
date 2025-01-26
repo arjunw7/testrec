@@ -47,37 +47,58 @@ const createMatchingKeys = (record: any, policyType: any): string[] => {
   const keys = [];
   
   if(policyType === 'GMC') {
-    // Key 1: EID + name + gender + DOB + relationship
+    // Key 1: EID + name + gender + DOB + relationship -> SI mismatch
     keys.push(['employee_id','name','gender','date_of_birth_dd_mmm_yyyy','relationship']
       .map(field => normalizeFieldValue(field, record[field])).join('|'));
     
-    // Key 2: EID + name + gender + DOB + sum insured
+    // Key 2: EID + name + gender + DOB + sum insured -> relationship mismatch
     keys.push(['employee_id','name','gender','date_of_birth_dd_mmm_yyyy','sum_insured']
       .map(field => normalizeFieldValue(field, record[field])).join('|'));
     
-    // Key 3: EID + name + gender + relationship + sum insured
+    // Key 3: EID + name + gender + relationship + sum insured -> DOB mismatch
     keys.push(['employee_id','name','gender','relationship','sum_insured']
       .map(field => normalizeFieldValue(field, record[field])).join('|'));
 
-    // Key 4: EID + name + dob + relationship + sum insured
+    // Key 4: EID + name + dob + relationship + sum insured + gender mismatch
     keys.push(['employee_id','name','date_of_birth_dd_mmm_yyyy','relationship','sum_insured']
       .map(field => normalizeFieldValue(field, record[field])).join('|'));
 
-    // Key 5: EID + gender + dob + relationship + sum insured
+    // Key 5: EID + gender + dob + relationship + sum insured -> name mismatch
     keys.push(['employee_id','gender','date_of_birth_dd_mmm_yyyy','relationship','sum_insured']
       .map(field => normalizeFieldValue(field, record[field])).join('|'));
 
-    // Key 6: name + gender + dob + relationship + sum insured
+    // Key 6: name + gender + dob + relationship + sum insured -> EID mismatch
     keys.push(['name','gender','date_of_birth_dd_mmm_yyyy','relationship','sum_insured']
       .map(field => normalizeFieldValue(field, record[field])).join('|'));
 
-    // Key 7: name + gender + relationship + sum insured
-    keys.push(['name','gender','relationship','sum_insured']
+    // // Key 7: name + gender + relationship + sum insured -> EID & DOB mismatch
+    // keys.push(['name','gender','relationship','sum_insured']
+    //   .map(field => normalizeFieldValue(field, record[field])).join('|'));
+
+    // // Key 8: name +  dob + relationship + sum insured -> EID and gender mismatch
+    // keys.push(['name','date_of_birth_dd_mmm_yyyy','relationship','sum_insured']
+    //   .map(field => normalizeFieldValue(field, record[field])).join('|'));
+    
+    // Key 9: employee id +  name + relationship + gender -> SI and DOB mismatch
+    keys.push(['employee_id','name', 'relationship', 'gender']
       .map(field => normalizeFieldValue(field, record[field])).join('|'));
 
-    // Key 8: name +  dob + relationship + sum insured
-    keys.push(['name','date_of_birth_dd_mmm_yyyy','relationship','sum_insured']
+    // Key 10: employee id +  name + date_of_birth_dd_mmm_yyyy + gender -> SI and relationshp mismatch
+    keys.push(['employee_id','name', 'date_of_birth_dd_mmm_yyyy', 'gender']
       .map(field => normalizeFieldValue(field, record[field])).join('|'));
+    
+    // Key 11: employee id +  name + relationship + dob -> SI & gender mismatch
+    keys.push(['employee_id','name', 'relationship', 'date_of_birth_dd_mmm_yyyy']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
+
+    // Key 12: employee id +  name + gender + dob -> SI & relationship mismatch
+    keys.push(['employee_id','name', 'gender', 'date_of_birth_dd_mmm_yyyy']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
+    
+    // Key 13: employee id +  relationship + gender + dob -> SI & name
+    keys.push(['employee_id','relationship', 'gender', 'date_of_birth_dd_mmm_yyyy']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
+      
   } else {
     // Key 1: name + gender + sum_insured + ctc -> eid
     keys.push(['name','gender','sum_insured','ctc']
@@ -95,7 +116,7 @@ const createMatchingKeys = (record: any, policyType: any): string[] => {
     keys.push(['employee_id','name','gender', 'sum_insured']
       .map(field => normalizeFieldValue(field, record[field])).join('|'));
 
-    // Key 5: employee_id + name + gender + ctc
+    // Key 5: employee_id + name + gender + ctc -> SI
     keys.push(['employee_id','name','gender','ctc']
       .map(field => normalizeFieldValue(field, record[field])).join('|'));
     
