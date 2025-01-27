@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import { formatToStandardDate, formatDate, normalizeRelationship, excelDateToJSDate, createLookupKey } from '@/lib/utils';
+import { formatDate, normalizeRelationship, excelDateToJSDate, createLookupKey, sanitizeEmployeeId } from '@/lib/utils';
 import { useWorkflow } from '../context/WorkflowContext';
 import { Field } from '@/types';
 
@@ -128,6 +128,9 @@ export const UploadMoreData: React.FC<UploadMoreDataProps> = ({ onDataUploaded, 
             } else {
               value = formatDate(value);
             }
+          }
+          if(field.key === "employee_id") {
+            transformedRow[field.key] === sanitizeEmployeeId(value);
           }
 
           if (field.key === "relationship") {

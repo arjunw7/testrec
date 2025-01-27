@@ -17,7 +17,7 @@ export function HrDataAvailability({ onNext, onBack }: { onNext: () => void; onB
               <FileText className="h-5 w-5 text-[#025F4C]" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold">Has Employer Shared Additional Members for Endorsement?</h2>
+              <h2 className="text-lg font-semibold">Additional Data Available for Endorsement?</h2>
               <p className="text-sm text-muted-foreground">Supplementary data for addition, corrections or deletions</p>
             </div>
           </div>

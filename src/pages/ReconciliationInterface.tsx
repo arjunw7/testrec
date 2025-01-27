@@ -28,12 +28,8 @@ import { WorkflowProvider, useWorkflow } from '../context/WorkflowContext';
 import { normalizeRelationship, formatToStandardDate, formatDate, excelDateToJSDate } from '../lib/utils';
 import { validateDataSet } from '../lib/validation';
 import { cn } from '@/lib/utils';
-import { isRequiredDataAvailable, createLookupKey, sanitizeName,hasNameErrors } from '@/lib/utils';
+import { isRequiredDataAvailable, createLookupKey, sanitizeName, hasNameErrors, sanitizeEmployeeId } from '@/lib/utils';
 import { SanitizeNamesButton } from '../components/SanitizeNamesButton';
-
-
-
-import * as XLSX from 'xlsx';
 import { apiClient } from '../services/apiClient';
 import { LoadingDialog } from '@/components/LoadingDialog';
 
@@ -159,6 +155,9 @@ function ReconciliationInterfaceContent() {
     edit: '',
     offboard: ''
   });
+  const [showNamePreview, setShowNamePreview] = useState(false);
+  const [nameChanges, setNameChanges] = useState<{ originalName: string; sanitizedName: string; }[]>([]);
+
   
   // Get available tabs based on workflow state
   const getAvailableTabs = useCallback(() => {
@@ -419,6 +418,7 @@ function ReconciliationInterfaceContent() {
       if (!dataSource) return prev;
       // Group records by employee ID to find primary members
       const employeeGroups = new Map<string, any>();
+      
       const transformedData = dataSource.rawData.map(row => {
         const transformedRow: any = {};
         dataSource.fields.forEach(field => {
@@ -451,6 +451,9 @@ function ReconciliationInterfaceContent() {
               if (transformedRow.relationship === 'SELF') {
                 employeeGroups.set(transformedRow.employee_id, value);
               }
+            }
+            else if(field.key === "employee_id") {
+              transformedRow[field.key] = sanitizeEmployeeId(value);
             }
             else {
               transformedRow[field.key] = value;
@@ -519,25 +522,21 @@ function ReconciliationInterfaceContent() {
     }));
   };
 
-  const handleSanitizeNames = (source: string) => {
+  const handleSanitizeNames = (source: string) => (sanitizedData: any[]) => {
     setDataSources(prev => {
       const sourceData = prev[source];
       if (!sourceData) return prev;
-  
-      const updatedData = sourceData.data.map(record => ({
-        ...record,
-        name: sanitizeName(record.name)
-      }));
   
       return {
         ...prev,
         [source]: {
           ...sourceData,
-          data: updatedData
+          data: sanitizedData
         }
       };
     });
   };
+  
 
   if (loadingRoster) {
     return <LoadingScreen />;
@@ -677,11 +676,12 @@ function ReconciliationInterfaceContent() {
                         {source === 'offboard' && 'Offboard Records'}
                       </h3>
                       <div className="flex gap-2">
-                        {['hr', 'insurer', 'genome'].includes(source) && 
-                          dataSources[source] && 
-                          validateDataSet(dataSources[source]!.data, slabMapping, source) &&
+                      {['hr', 'insurer', 'genome'].includes(source) && 
+                          dataSources[source]?.data && 
+                          dataSources[source]?.data.length > 0 &&
                           hasNameErrors(validateDataSet(dataSources[source]!.data, slabMapping, source)) && (
-                          <SanitizeNamesButton onClick={() => handleSanitizeNames(source)} />
+                            <SanitizeNamesButton onClick={handleSanitizeNames(source)} data={dataSources[source]!.data} />
+
                         )}
                         {dataSources[source] && ['hr', 'insurer'].includes(source) && (
                           <>

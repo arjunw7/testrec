@@ -373,7 +373,7 @@ export const reconcileData = (
         }
         if (mismatches.fields?.length === 0) {
           perfectlyMatchedMembers.push({
-            ...hrRecord,
+            ...genomeRecord,
             slab_id: calculateSlabId(Number(hrRecord.sum_insured), slabMapping)
           });
         }

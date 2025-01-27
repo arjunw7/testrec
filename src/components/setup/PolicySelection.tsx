@@ -183,7 +183,7 @@ export function PolicySelection({ onNext, onBack }: { onNext: () => void; onBack
               onClick={handlePolicySelect} 
               disabled={!tempSelectPolicy}
               size="sm"
-              className="px-6"
+              className="px-6 policy-selector"
             >
               Next
             </Button>

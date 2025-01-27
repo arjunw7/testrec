@@ -152,27 +152,31 @@ export const normalizeRelationship = (relationship: string): string => {
   const normalized = relationship?.toString()?.toUpperCase()?.trim();
   
   // Child relationships
-  if (['SON', 'DAUGHTER', 'CHILDREN', 'REL_03', 'REL_04'].includes(normalized)) {
+  if (['SON', 'DAUGHTER', 'CHILDREN', 'REL_04', 'UDTR', 'SONM'].includes(normalized)) {
     return 'CHILD';
   }
   
   // Spouse relationships
-  if (['WIFE', 'HUSBAND','REL_10'].includes(normalized)) {
+  if (['WIFE', 'HUSBAND','REL_03', 'REL_10', 'SPSE'].includes(normalized)) {
     return 'SPOUSE';
   }
   
   // Parent relationships
-  if (['FATHER', 'MOTHER', 'REL_05', 'REL_06'].includes(normalized)) {
+  if (['FATHER', 'MOTHER', 'EMOT', 'EFAT', 'REL_05', 'REL_06', 'REL_11','REL_12'].includes(normalized)) {
     return 'PARENT';
   }
 
-  if (['FATHER IN LAW', 'FATHER-IN-LAW', 'MOTHER IN LAW', 'MOTHER-IN-LAW', 'PARENT IN LAW', 'REL_07', 'REL_08'].includes(normalized)) {
+  if (['FATHER IN LAW', 'FATHER-IN-LAW', 'MOTHER IN LAW', 'MOTHER-IN-LAW', 'PARENT IN LAW', 'FLAW', 'MLAW', 'REL_09'].includes(normalized)) {
     return 'PARENT-IN-LAW';
   }
 
   // Return original if no match (but should be one of the base relationships)
   if (['SELF', 'SPOUSE', 'CHILD', 'PARENT','PARENT-IN-LAW'].includes(normalized)) {
     return normalized;
+  }
+
+  if (['REL_01', 'MMBR'].includes(normalized)) {
+    return 'SELF';
   }
   
   return ''; // Default to SELF if unknown
@@ -249,4 +253,15 @@ export const hasNameErrors = (validationResults: Map<number, ValidationResult>):
     }
   }
   return false;
+};
+
+export const sanitizeEmployeeId = (employeeId: string): string => {
+  if (!employeeId) return '';
+  
+  // Trim whitespace first
+  const trimmed = employeeId?.toString()?.trim();
+  
+  // Remove special characters from start and end, but preserve internal ones
+  // This regex matches special characters at the start (^) or end ($)
+  return trimmed?.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, '');
 };

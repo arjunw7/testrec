@@ -144,7 +144,7 @@ export function CompanySelection({ onNext }: { onNext: () => void }) {
               onClick={onNext} 
               disabled={!company}
               size="sm"
-              className="px-6"
+              className="px-6 company-selector"
             >
               Next
             </Button>

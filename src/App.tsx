@@ -35,6 +35,17 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       locale: "en", // Change the language, view all available languages from https://help.featurebase.app/en/articles/8879098-using-featurebase-in-my-language  
       metadata: null // Attach session-specific metadata to feedback. Refer to the advanced section for the details: https://help.featurebase.app/en/articles/3774671-advanced#7k8iriyap66
     });
+    pendo.initialize({
+      visitor: {
+          id: user?.email,
+          email: user?.email,
+          firstName: user?.displayName,
+        },
+        account: {
+            id: 'loop',
+            accountName: 'loop-health',
+        }
+    });
   }
   
   return children;

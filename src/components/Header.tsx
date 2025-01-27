@@ -133,7 +133,7 @@ export function Header({ company, policy, onRestart, onReconData, onReset, hasRe
             <Button 
               variant="outline"
               onClick={handleExport}
-              className="gap-2 border-[#025F4C]/20 text-[#025F4C] hover:bg-[#025F4C]/5"
+              className="gap-2 border-[#025F4C]/20 text-[#025F4C] hover:bg-[#025F4C]/5 export-data-cta"
             >
               <Download className="w-4 h-4" />
               Export Data
@@ -152,7 +152,7 @@ export function Header({ company, policy, onRestart, onReconData, onReset, hasRe
                 ) : (
                   <Button 
                     onClick={onReconData}
-                    className="gap-2 bg-[#BCDD33] text-[#025F4C] hover:bg-[#BCDD33]/90"
+                    className="gap-2 bg-[#BCDD33] text-[#025F4C] hover:bg-[#BCDD33]/90 recon-cta"
                   >
                     <RefreshCw className="w-4 h-4" />
                     Recon Data

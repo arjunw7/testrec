@@ -528,141 +528,142 @@ export const DataTable: React.FC<DataTableProps> = ({
               Update values for the selected rows. Leave fields empty to keep their current values.
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            {getBulkEditFields()?.includes('relationship') && <div className="grid gap-2">
-              <Label>Relationship</Label>
-              <Select
-                value={bulkEditValues.relationship}
-                onValueChange={(value) => 
-                  setBulkEditValues(prev => ({ ...prev, relationship: value }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select relationship" />
-                </SelectTrigger>
-                <SelectContent>
-                  {RELATIONSHIP_OPTIONS.map(option => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>}
+          <div className="max-h-[60vh] overflow-y-auto pr-6 -mr-6">
+            <div className="grid gap-4 py-4">
+              {getBulkEditFields()?.includes('relationship') && <div className="grid gap-2">
+                <Label>Relationship</Label>
+                <Select
+                  value={bulkEditValues.relationship}
+                  onValueChange={(value) => 
+                    setBulkEditValues(prev => ({ ...prev, relationship: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select relationship" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {RELATIONSHIP_OPTIONS.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>}
 
-            {getBulkEditFields()?.includes('gender') && <div className="grid gap-2">
-              <Label>Gender</Label>
-              <Select
-                value={bulkEditValues.gender}
-                onValueChange={(value) => 
-                  setBulkEditValues(prev => ({ ...prev, gender: value }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select gender" />
-                </SelectTrigger>
-                <SelectContent>
-                  {GENDER_OPTIONS.map(option => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>}
+              {getBulkEditFields()?.includes('gender') && <div className="grid gap-2">
+                <Label>Gender</Label>
+                <Select
+                  value={bulkEditValues.gender}
+                  onValueChange={(value) => 
+                    setBulkEditValues(prev => ({ ...prev, gender: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select gender" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GENDER_OPTIONS.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>}
 
-            {getBulkEditFields()?.includes('coverage_start_date_dd_mmm_yyyy') && <div className="grid gap-2">
-              <Label>Coverage Start Date (DD/MM/YY)</Label>
-              <Input
-                type="text"
-                placeholder="DD/MM/YY"
-                value={bulkEditValues.coverage_start_date_dd_mmm_yyyy || ''}
-                onChange={(e) => 
-                  setBulkEditValues(prev => ({ 
-                    ...prev, 
-                    coverage_start_date_dd_mmm_yyyy: e.target.value 
-                  }))
-                }
-              />
-            </div>}
+              {getBulkEditFields()?.includes('coverage_start_date_dd_mmm_yyyy') && <div className="grid gap-2">
+                <Label>Coverage Start Date (DD/MM/YY)</Label>
+                <Input
+                  type="text"
+                  placeholder="DD/MM/YY"
+                  value={bulkEditValues.coverage_start_date_dd_mmm_yyyy || ''}
+                  onChange={(e) => 
+                    setBulkEditValues(prev => ({ 
+                      ...prev, 
+                      coverage_start_date_dd_mmm_yyyy: e.target.value 
+                    }))
+                  }
+                />
+              </div>}
 
-            {getBulkEditFields()?.includes('sum_insured') && <div className="grid gap-2">
-              <Label>Sum Insured</Label>
-              <Select
-                value={bulkEditValues.sum_insured}
-                onValueChange={(value) => 
-                  setBulkEditValues(prev => ({ ...prev, sum_insured: value }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select sum insured" />
-                </SelectTrigger>
-                <SelectContent>
-                  {slabMapping.map(slab => (
-                    <SelectItem key={slab.sum_insured} value={slab.sum_insured}>
-                      ₹{parseInt(slab.sum_insured).toLocaleString('en-IN')}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>}
+              {getBulkEditFields()?.includes('sum_insured') && <div className="grid gap-2">
+                <Label>Sum Insured</Label>
+                <Select
+                  value={bulkEditValues.sum_insured}
+                  onValueChange={(value) => 
+                    setBulkEditValues(prev => ({ ...prev, sum_insured: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select sum insured" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {slabMapping.map(slab => (
+                      <SelectItem key={slab.sum_insured} value={slab.sum_insured}>
+                        ₹{parseInt(slab.sum_insured).toLocaleString('en-IN')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>}
 
-            {getBulkEditFields()?.includes('mobile') && <div className="grid gap-2">
-              <Label>Mobile</Label>
-              <Input
-                type="tel"
-                placeholder="10-digit mobile number"
-                value={bulkEditValues.mobile || ''}
-                onChange={(e) => 
-                  setBulkEditValues(prev => ({ ...prev, mobile: e.target.value }))
-                }
-              />
-            </div>}
+              {getBulkEditFields()?.includes('mobile') && <div className="grid gap-2">
+                <Label>Mobile</Label>
+                <Input
+                  type="tel"
+                  placeholder="10-digit mobile number"
+                  value={bulkEditValues.mobile || ''}
+                  onChange={(e) => 
+                    setBulkEditValues(prev => ({ ...prev, mobile: e.target.value }))
+                  }
+                />
+              </div>}
 
-            {getBulkEditFields()?.includes('email_address') && <div className="grid gap-2">
-              <Label>Email</Label>
-              <Input
-                type="email"
-                placeholder="Email address"
-                value={bulkEditValues.email_address || ''}
-                onChange={(e) => 
-                  setBulkEditValues(prev => ({ ...prev, email_address: e.target.value }))
-                }
-              />
-            </div>}
+              {getBulkEditFields()?.includes('email_address') && <div className="grid gap-2">
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  placeholder="Email address"
+                  value={bulkEditValues.email_address || ''}
+                  onChange={(e) => 
+                    setBulkEditValues(prev => ({ ...prev, email_address: e.target.value }))
+                  }
+                />
+              </div>}
 
-            {getBulkEditFields()?.includes('enrolment_due_date_dd_mmm_yyyy') && <div className="grid gap-2">
-              <Label>Enrolment Due Date (DD/MM/YY)</Label>
-              <Input
-                type="text"
-                placeholder="DD/MM/YY"
-                value={bulkEditValues.enrolment_due_date_dd_mmm_yyyy || ''}
-                onChange={(e) => 
-                  setBulkEditValues(prev => ({ 
-                    ...prev, 
-                    enrolment_due_date_dd_mmm_yyyy: e.target.value 
-                  }))
-                }
-              />
-            </div>}
-            {getBulkEditFields()?.includes('date_of_leaving_dd_mmm_yyyy') && <div className="grid gap-2">
-              <Label>Date of Leaving (DD/MM/YY)</Label>
-              <Input
-                type="text"
-                placeholder="DD/MM/YY"
-                value={bulkEditValues.date_of_leaving_dd_mmm_yyyy || ''}
-                onChange={(e) => 
-                  setBulkEditValues(prev => ({ 
-                    ...prev, 
-                    date_of_leaving_dd_mmm_yyyy: e.target.value 
-                  }))
-                }
-              />
-            </div>}
+              {getBulkEditFields()?.includes('enrolment_due_date_dd_mmm_yyyy') && <div className="grid gap-2">
+                <Label>Enrolment Due Date (DD/MM/YY)</Label>
+                <Input
+                  type="text"
+                  placeholder="DD/MM/YY"
+                  value={bulkEditValues.enrolment_due_date_dd_mmm_yyyy || ''}
+                  onChange={(e) => 
+                    setBulkEditValues(prev => ({ 
+                      ...prev, 
+                      enrolment_due_date_dd_mmm_yyyy: e.target.value 
+                    }))
+                  }
+                />
+              </div>}
+              {getBulkEditFields()?.includes('date_of_leaving_dd_mmm_yyyy') && <div className="grid gap-2">
+                <Label>Date of Leaving (DD/MM/YY)</Label>
+                <Input
+                  type="text"
+                  placeholder="DD/MM/YY"
+                  value={bulkEditValues.date_of_leaving_dd_mmm_yyyy || ''}
+                  onChange={(e) => 
+                    setBulkEditValues(prev => ({ 
+                      ...prev, 
+                      date_of_leaving_dd_mmm_yyyy: e.target.value 
+                    }))
+                  }
+                />
+              </div>}
+            </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="mt-6">
             <Button variant="outline" onClick={() => setShowBulkEditDialog(false)}>
               Cancel
             </Button>
