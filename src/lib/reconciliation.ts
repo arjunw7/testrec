@@ -1,4 +1,3 @@
-import { ColumnMapping } from '../types';
 import { formatToStandardDate, normalizeRelationship } from './utils';
 
 interface ReconData {
@@ -32,7 +31,7 @@ const normalizeFieldValue = (field: string, value: any): string => {
     case 'date_of_birth_dd_mmm_yyyy':
       return formatToStandardDate(value).toLowerCase();
     case 'name':
-      return value?.toString()?.toLowerCase()?.trim();
+      return value?.toString()?.toLowerCase()?.trim()?.replace(/\s+/g, ' ');
     case 'employee_id':
       return value?.toString()?.toLowerCase()?.trim();
     case 'sum_insured':
@@ -47,6 +46,9 @@ const createMatchingKeys = (record: any, policyType: any): string[] => {
   const keys = [];
   
   if(policyType === 'GMC') {
+
+    //============KEYS WITH 5 FIELD COMBINATIONS============
+    
     // Key 1: EID + name + gender + DOB + relationship -> SI mismatch
     keys.push(['employee_id','name','gender','date_of_birth_dd_mmm_yyyy','relationship']
       .map(field => normalizeFieldValue(field, record[field])).join('|'));
@@ -71,32 +73,76 @@ const createMatchingKeys = (record: any, policyType: any): string[] => {
     keys.push(['name','gender','date_of_birth_dd_mmm_yyyy','relationship','sum_insured']
       .map(field => normalizeFieldValue(field, record[field])).join('|'));
 
-    // // Key 7: name + gender + relationship + sum insured -> EID & DOB mismatch
-    // keys.push(['name','gender','relationship','sum_insured']
-    //   .map(field => normalizeFieldValue(field, record[field])).join('|'));
+    //============KEYS WITH 4 FIELD COMBINATIONS============
 
-    // // Key 8: name +  dob + relationship + sum insured -> EID and gender mismatch
-    // keys.push(['name','date_of_birth_dd_mmm_yyyy','relationship','sum_insured']
-    //   .map(field => normalizeFieldValue(field, record[field])).join('|'));
+    // MISMATCH of SI along with some other field
+
+    // Key 7: employee_id + name +  dob + relationship -> SI and EID mismatch
+    keys.push(['name', 'gender','date_of_birth_dd_mmm_yyyy','relationship']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
     
-    // Key 9: employee id +  name + relationship + gender -> SI and DOB mismatch
+    // Key 8: employee id +  name + relationship + gender -> SI and DOB mismatch
     keys.push(['employee_id','name', 'relationship', 'gender']
       .map(field => normalizeFieldValue(field, record[field])).join('|'));
 
-    // Key 10: employee id +  name + date_of_birth_dd_mmm_yyyy + gender -> SI and relationshp mismatch
+    // Key 9: employee id +  name + date_of_birth_dd_mmm_yyyy + gender -> SI and relationshp mismatch
     keys.push(['employee_id','name', 'date_of_birth_dd_mmm_yyyy', 'gender']
       .map(field => normalizeFieldValue(field, record[field])).join('|'));
     
-    // Key 11: employee id +  name + relationship + dob -> SI & gender mismatch
+    // Key 10: employee id +  name + relationship + dob -> SI & gender mismatch
     keys.push(['employee_id','name', 'relationship', 'date_of_birth_dd_mmm_yyyy']
       .map(field => normalizeFieldValue(field, record[field])).join('|'));
-
-    // Key 12: employee id +  name + gender + dob -> SI & relationship mismatch
-    keys.push(['employee_id','name', 'gender', 'date_of_birth_dd_mmm_yyyy']
-      .map(field => normalizeFieldValue(field, record[field])).join('|'));
     
-    // Key 13: employee id +  relationship + gender + dob -> SI & name
+    // Key 11: employee id +  relationship + gender + dob -> SI & name
     keys.push(['employee_id','relationship', 'gender', 'date_of_birth_dd_mmm_yyyy']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
+
+    // MISMATCH of RELATIONSHIP along with some other field  
+
+    // Key 12: name + gender + dob + SI -> RELATIONSHIP and EID mismatch
+    keys.push(['name', 'gender', 'date_of_birth_dd_mmm_yyyy', 'sum_insured']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
+
+    // Key 13: EID + gender + dob + SI -> RELATIONSHIP and name mismatch
+    keys.push(['employee_id', 'gender', 'date_of_birth_dd_mmm_yyyy', 'sum_insured']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
+
+    // Key 14: EID + name + dob + SI -> RELATIONSHIP and gender mismatch
+    keys.push(['employee_id', 'name', 'date_of_birth_dd_mmm_yyyy', 'sum_insured']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
+
+    // Key 15: EID + name + gender + SI -> RELATIONSHIP and dob mismatch [This key will give incorrect results if SELF/PARENT or SELF/CHILD have same name and gender]
+    keys.push(['employee_id', 'name', 'gender', 'sum_insured']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
+
+    // MISMATCH of GENDER along with some other field  
+
+    // Key 16: employee_id + relationship + dob + SI -> GENDER and name mismatch
+    keys.push(['employee_id', 'relationship', 'date_of_birth_dd_mmm_yyyy', 'sum_insured']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
+
+    // Key 17: name + relationship + dob + SI -> GENDER and EID mismatch
+    keys.push(['name', 'relationship', 'date_of_birth_dd_mmm_yyyy', 'sum_insured']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
+
+    // Key 18: employee_id + name + relationship + SI -> GENDER and DOB mismatch
+    keys.push(['employee_id', 'name', 'relationship', 'sum_insured']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
+
+    // MISMATCH of DOB along with some other field  
+
+    // Key 19: employee_id + relationship + gender + SI -> DOB and name mismatch
+    keys.push(['employee_id', 'relationship', 'gender', 'sum_insured']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
+
+    // Key 20: name + relationship + gender + SI -> DOB and EID mismatch
+    keys.push(['name', 'relationship', 'gender', 'sum_insured']
+      .map(field => normalizeFieldValue(field, record[field])).join('|'));
+
+    // MISMATCH of Name along with some other field
+
+    // Key 21: relationship + gender + DOB + SI -> Name and EID mismatch
+    keys.push(['relationship', 'gender', 'date_of_birth_dd_mmm_yyyy', 'sum_insured']
       .map(field => normalizeFieldValue(field, record[field])).join('|'));
       
   } else {
@@ -136,9 +182,22 @@ const findMatchingRecord = (record: any, records: Map<string, any>[], policyType
   return null;
 };
 
+// Function to find matching record using multiple keys
+const findMultipleMatchingRecords = (record: any, records: Map<string, any>[], policyType: any): any => {
+  const keys = createMatchingKeys(record, policyType);
+  const matches = [];
+  for (const key of keys) {
+    for (const recordMap of records) {
+      const match = recordMap.get(key);
+      matches.push(match);
+    }
+  }
+  return matches;
+};
+
 const createUniqueKey = (record: any) => {
   const employeeId = record.employee_id || '';
-  const name = record.name || '';
+  const name = record.name?.replace(/\s+/g, ' ') || '';
   const relationship = record.relationship || '';
   return `${employeeId?.toString()?.trim()}_${name?.toString()?.trim()}_${relationship?.toString()?.trim()}`.toLowerCase();
 };
@@ -176,11 +235,7 @@ const compareFields = (hrRecord: any, insurerRecord: any, genomeRecord: any, pol
     { key: 'employee_id', label: 'Employee ID', normalize: (value: string) => value?.toString()?.trim()?.toLowerCase() },
     { key: 'relationship', label: 'Relationship', normalize: (value: string) => normalizeRelationship(value?.toString())?.toLowerCase() },
     { key: 'gender', label: 'Gender', normalize: (value: string) => value?.toString()?.toLowerCase() },
-    { 
-      key: 'date_of_birth_dd_mmm_yyyy', 
-      label: 'DOB', 
-      normalize: (value: string) => formatToStandardDate(value)
-    },
+    { key: 'date_of_birth_dd_mmm_yyyy', label: 'DOB', normalize: (value: string) => formatToStandardDate(value) },
     { key: 'sum_insured', label: 'Sum Insured', normalize: (value: string) => value?.toLowerCase() }
   ] : [
     { key: 'name', label: 'Name', normalize: (value: string) => value?.toString()?.trim()?.toLowerCase() },
@@ -253,8 +308,8 @@ export const reconcileData = (
 
   const tobeEndorsed_add_manual = {
     members: [],
-    message: 'New member additions from HR',
-    description: 'These members are present in HR and Loop active roster but are not endorsed with Insurer.',
+    message: 'Member additions due to inconsistency between rosters',
+    description: 'These members are missing from either Loop or insurers roster.',
     action: 'Please add these members manually in the upcoming endorsement.'
   };
 
@@ -350,6 +405,7 @@ export const reconcileData = (
       const genomeRecord = findMatchingRecord(hrRecord, genomeMaps, policyType);
 
       if (insurerRecord && genomeRecord) {
+        // TO DO : what to do if the member is inactive in genome? Is inactive in genome, update active roster.
         const mismatches = compareFields(hrRecord, insurerRecord, genomeRecord, policyType);
         if (mismatches.fields?.length > 0) {
           dataMismatch.push({
@@ -400,6 +456,7 @@ export const reconcileData = (
           tobeEndorsed_add_manual.members.push(newRecord);
         }
       } else if (!insurerRecord && genomeRecord) {
+        // TO DO : what to do if the member is inactive in genome? if inactive, do nothing
         if (!addKeys.has(createUniqueKey(hrRecord))) {
           const newRecord = {
             ...hrRecord,
@@ -417,6 +474,7 @@ export const reconcileData = (
     insurerData.forEach(insurerRecord => {
       const genomeRecord = findMatchingRecord(insurerRecord, genomeMaps, policyType);
       if (genomeRecord) {
+        // TO DO : what to do if the member is inactive in genome? if inactive, add to update active roster sheet
         const mismatches = compareFields(null, insurerRecord, genomeRecord, policyType);
         if (mismatches.fields?.length > 0) {
           dataMismatch.push({
@@ -453,6 +511,7 @@ export const reconcileData = (
       const inGenome = findMatchingRecord(insurerRecord, genomeMaps, policyType);
   
       if (!inHR && inGenome && !isDuplicate(insurerRecord, offboardSheet)) {
+        // TO DO : what to do if the member is inactive in genome?
         if (!offboardKeys.has(createUniqueKey(insurerRecord))) {
           const offboardRecord = {
             ...insurerRecord,
@@ -474,6 +533,7 @@ export const reconcileData = (
         toBeEndorsed_offboard_conf_manual.members.push(offboardRecord);
       }
     } else {
+      
       const inGenome = findMatchingRecord(insurerRecord, genomeMaps, policyType);
       if (!inGenome) {
         if (!addKeys.has(createUniqueKey(insurerRecord))) {
@@ -485,13 +545,14 @@ export const reconcileData = (
           addData.push(newRecord);
           addKeys.add(createUniqueKey(insurerRecord));
           tobeEndorsed_add_manual.members.push(newRecord);
-        }
-        
+        } 
       }
+      // TO DO : what to do if the member is inactive in genome? if inactive, add to update active roster sheet
     }
   });
 
   genomeData.forEach(genomeRecord => {
+    // TO DO : what to do if the member is inactive in genome?
     if (hrData?.length > 0) {
       const inHR = findMatchingRecord(genomeRecord, hrMaps, policyType);
       const inInsurer = findMatchingRecord(genomeRecord, insurerMaps, policyType);

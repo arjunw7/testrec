@@ -255,7 +255,7 @@ export const hasNameErrors = (validationResults: Map<number, ValidationResult>):
   return false;
 };
 
-export const sanitizeEmployeeId = (employeeId: string): string => {
+export const sanitizeEmployeeId = (employeeId: string, insurer: string): string => {
   if (!employeeId) return '';
   
   // Trim whitespace first
@@ -263,5 +263,23 @@ export const sanitizeEmployeeId = (employeeId: string): string => {
   
   // Remove special characters from start and end, but preserve internal ones
   // This regex matches special characters at the start (^) or end ($)
-  return trimmed?.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, '');
+  let eidWothoutSpecialChars =  trimmed?.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, '');
+  if (insurer === 'The Oriental Insurance Co Ltd') {
+    eidWothoutSpecialChars = eidWothoutSpecialChars?.toString()
+      ?.replace(/[^a-zA-Z0-9]/g, '')
+      ?.replace(/[a-zA-Z]/g, '9');
+  } else if (insurer === 'Care Health Insurance') {
+    eidWothoutSpecialChars = eidWothoutSpecialChars?.toString()?.replace(/^0+/, '');
+  }
+  return eidWothoutSpecialChars;
+};
+
+//function to clean phone and email 
+export const cleanValue = (value: any): string | null => {
+  if (!value) return null;
+  const cleanedValue = value?.toString()?.trim()?.toUpperCase();
+  if (['N/A', '#N/A', 'NA', 'NULL', 'NIL'].includes(cleanedValue)) {
+    return null;
+  }
+  return value;
 };

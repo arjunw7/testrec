@@ -28,7 +28,7 @@ import { WorkflowProvider, useWorkflow } from '../context/WorkflowContext';
 import { normalizeRelationship, formatToStandardDate, formatDate, excelDateToJSDate } from '../lib/utils';
 import { validateDataSet } from '../lib/validation';
 import { cn } from '@/lib/utils';
-import { isRequiredDataAvailable, createLookupKey, sanitizeName, hasNameErrors, sanitizeEmployeeId } from '@/lib/utils';
+import { isRequiredDataAvailable, createLookupKey, cleanValue, hasNameErrors, sanitizeEmployeeId } from '@/lib/utils';
 import { SanitizeNamesButton } from '../components/SanitizeNamesButton';
 import { apiClient } from '../services/apiClient';
 import { LoadingDialog } from '@/components/LoadingDialog';
@@ -214,13 +214,15 @@ function ReconciliationInterfaceContent() {
           return;
         }
 
+        const insurer  = policy?.insurerName;
+
         const transformedData = roster
           .filter((member) => member?.policyId === policy?.id)
           .map((member) => ({
             is_active: new Date(member.policyEndDate) > new Date() ? "Yes" : "No",
             user_id: member.userId,
-            employee_id: member.employeeId,
-            name: `${member?.firstName?.toProperCase()} ${member.lastName?.toProperCase()}`,
+            employee_id: sanitizeEmployeeId(member.employeeId, insurer),
+            name: `${member?.firstName?.toProperCase()} ${member.lastName?.toProperCase()}`?.toString()?.replace(/\s+/g, ' '),
             relationship: normalizeRelationship(member.relationship),
             gender: member.gender,
             date_of_birth_dd_mmm_yyyy: formatDate(new Date(member.dob)?.getTime()),
@@ -435,6 +437,8 @@ function ReconciliationInterfaceContent() {
             }
             if (field.key === "relationship") {
               transformedRow[field.key] = normalizeRelationship(value);
+            } else if(field.key === "name") {
+              transformedRow[field.key] = value?.toString()?.replace(/\s+/g, ' ');
             }
             else if (field.key === 'gender') {
               let updatedGender = '';
@@ -453,8 +457,12 @@ function ReconciliationInterfaceContent() {
               }
             }
             else if(field.key === "employee_id") {
-              transformedRow[field.key] = sanitizeEmployeeId(value);
+              const insurer  = policy?.insurerName;
+              transformedRow[field.key] = sanitizeEmployeeId(value, insurer);
             }
+            else if (['mobile', 'email_address'].includes(field.key)) {
+              value = cleanValue(value);
+            } 
             else {
               transformedRow[field.key] = value;
             }

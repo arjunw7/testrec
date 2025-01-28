@@ -89,19 +89,52 @@ export function SummaryTab({ reconData }: SummaryTabProps) {
   };
 
   const getMismatchSummary = (editData: any[]): MismatchSummary[] => {
-    const fieldCounts = new Map<string, number>();
+    // Track individual field mismatches
+    const individualFieldCounts = new Map<string, number>();
+    // Track field combination mismatches
+    const combinationCounts = new Map<string, number>();
     
     editData.forEach(record => {
       const fields = record.mismatch_fields?.split(', ') || [];
-      fields.forEach((field) => {
-        fieldCounts.set(field, (fieldCounts.get(field) || 0) + 1);
-      });
+      
+      // If only one field is mismatched, count as individual
+      if (fields.length === 1) {
+        individualFieldCounts.set(
+          fields[0], 
+          (individualFieldCounts.get(fields[0]) || 0) + 1
+        );
+      } 
+      // If multiple fields are mismatched, count as combination
+      else if (fields.length > 1) {
+        const combinationKey = fields.sort().join(' and ');
+        combinationCounts.set(
+          combinationKey,
+          (combinationCounts.get(combinationKey) || 0) + 1
+        );
+      }
     });
-  
-    return Array.from(fieldCounts.entries()).map(([field, count]) => ({
-      field,
-      count
-    }));
+
+    const summary: MismatchSummary[] = [];
+
+    // Add individual field mismatches
+    for (const [field, count] of individualFieldCounts.entries()) {
+      summary.push({
+        field: `${field}`,
+        count,
+        type: 'individual'
+      });
+    }
+
+    // Add combination mismatches
+    for (const [fields, count] of combinationCounts.entries()) {
+      summary.push({
+        field: fields,
+        count,
+        type: 'combination'
+      });
+    }
+
+    return summary;
   };
 
   const renderSection = (title: string, lists: SummaryList[], fields: any[], sectionType:string) => {

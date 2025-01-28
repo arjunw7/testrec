@@ -42,7 +42,8 @@ export function NameSanitizationPreview({
         sanitizedName: record.name
           ?.toString()
           ?.replace(/^(mr\.|mrs\.|dr\.|miss\.|prof\.)?\s*/i, '')
-          ?.replace(/[^a-zA-Z\s]/g, '')
+          ?.replace(/[^a-zA-Z\s]/g, ' ')
+          ?.replace(/\s+/g, ' ')
           ?.trim()
       })));
     }
@@ -73,13 +74,10 @@ export function NameSanitizationPreview({
 
   const handleNameChange = (index: number, value: string) => {
     // Prevent any characters except letters and spaces
-    const sanitizedValue = value.replace(/[^a-zA-Z\s]/g, '');
+    const sanitizedValue = value.replace(/[^a-zA-Z\s]/g, ' ')?.replace(/\s+/g, ' ');
     
     // Auto-capitalize first letter of each word
-    const formattedValue = sanitizedValue
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
+    const formattedValue = sanitizedValue;
 
     setEditableData(prev => {
       const newData = [...prev];

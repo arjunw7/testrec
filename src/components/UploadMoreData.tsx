@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import { formatDate, normalizeRelationship, excelDateToJSDate, createLookupKey, sanitizeEmployeeId } from '@/lib/utils';
+import { formatDate, normalizeRelationship, excelDateToJSDate, createLookupKey, sanitizeEmployeeId, cleanValue } from '@/lib/utils';
 import { useWorkflow } from '../context/WorkflowContext';
 import { Field } from '@/types';
 
@@ -38,7 +38,7 @@ export const UploadMoreData: React.FC<UploadMoreDataProps> = ({ onDataUploaded, 
   const [rawData, setRawData] = useState<any[]>([]);
   const [mapping, setMapping] = useState<{ [key: string]: string }>({});
   const [mappedData, setMappedData] = useState<any[]>([]);
-  const { slabMapping, dataSources } = useWorkflow();
+  const { slabMapping, dataSources, policy } = useWorkflow();
   const [autoMapDependentSumInsured, setAutoMapDependentSumInsured] = useState(false);
 
   const processExcelFile = (workbook: XLSX.WorkBook, sheetName: string) => {
@@ -128,14 +128,19 @@ export const UploadMoreData: React.FC<UploadMoreDataProps> = ({ onDataUploaded, 
             } else {
               value = formatDate(value);
             }
+          } else if(field.key === "name") {
+            transformedRow[field.key] = value?.toString()?.replace(/\s+/g, ' ');
           }
-          if(field.key === "employee_id") {
-            transformedRow[field.key] === sanitizeEmployeeId(value);
+          else if(field.key === "employee_id") {
+            const insurer = policy?.insurerName;
+            transformedRow[field.key] === sanitizeEmployeeId(value, insurer);
           }
-
-          if (field.key === "relationship") {
+          else if (field.key === "relationship") {
             transformedRow[field.key] = normalizeRelationship(value);
           }
+          else if (['mobile', 'email_address'].includes(field.key)) {
+              value = cleanValue(value);
+            }
           else if (field.key === 'gender') {
             let updatedGender = '';
             if (['MALE', 'M'].includes(value?.toUpperCase())) updatedGender = 'Male';
