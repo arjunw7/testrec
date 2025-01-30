@@ -25,6 +25,7 @@ export const reconService = {
           created_by_id: user.uid,
           created_by_email: user.email || '',
           created_by_name: user.displayName || 'Unknown User',
+          start_time: new Date().toISOString()
         })
         .select()
         .single();
@@ -89,8 +90,7 @@ export const reconService = {
           *,
           recon_files (*),
           recon_summary (*)
-        `)
-        .order('start_time', { ascending: false });
+        `, { count: 'exact' });
 
       if (searchTerm) {
         query = query.or(`
@@ -100,12 +100,28 @@ export const reconService = {
         `);
       }
 
+      // Order by start_time descending
+      query = query.order('start_time', { ascending: false });
+
       const { data, error, count } = await query
-        .range((page - 1) * pageSize, page * pageSize - 1)
-        .select('*', { count: 'exact' });
+        .range((page - 1) * pageSize, page * pageSize - 1);
 
       if (error) throw error;
-      return { data, count };
+
+      // Transform the data to match the expected format
+      const transformedData = data?.map(recon => ({
+        ...recon,
+        time_to_recon: this.calculateDuration(
+          recon.start_time,
+          recon.recon_time
+        ),
+        time_to_export: this.calculateDuration(
+          recon.start_time,
+          recon.export_time
+        ),
+      }));
+
+      return { data: transformedData, count };
     } catch (error) {
       console.error('Failed to get recon history:', error);
       throw error;
@@ -127,8 +143,11 @@ export const reconService = {
       
       // Calculate average recon time
       const reconTimes = data
-        .filter(recon => recon.time_to_recon)
-        .map(recon => this.parseDuration(recon.time_to_recon));
+        .filter(recon => recon.recon_time && recon.start_time)
+        .map(recon => this.calculateDurationInSeconds(
+          recon.start_time,
+          recon.recon_time
+        ));
       
       const avgReconTime = reconTimes.length > 0 
         ? reconTimes.reduce((acc, time) => acc + time, 0) / reconTimes.length
@@ -136,8 +155,11 @@ export const reconService = {
 
       // Calculate average export time
       const exportTimes = data
-        .filter(recon => recon.time_to_export)
-        .map(recon => this.parseDuration(recon.time_to_export));
+        .filter(recon => recon.export_time && recon.start_time)
+        .map(recon => this.calculateDurationInSeconds(
+          recon.start_time,
+          recon.export_time
+        ));
       
       const avgExportTime = exportTimes.length > 0
         ? exportTimes.reduce((acc, time) => acc + time, 0) / exportTimes.length
@@ -158,7 +180,9 @@ export const reconService = {
 
       // Group by day
       const dailyRecons = data.reduce((acc, recon) => {
-        const date = new Date(recon.start_time).toISOString().split('T')[0];
+        const date = new Date(recon.start_time)
+          .toISOString()
+          .split('T')[0];
         acc[date] = (acc[date] || 0) + 1;
         return acc;
       }, {});
@@ -177,11 +201,26 @@ export const reconService = {
     }
   },
 
-  parseDuration(duration: string): number {
-    const match = duration.match(/(\d+):(\d+):(\d+)/);
-    if (!match) return 0;
-    const [_, hours, minutes, seconds] = match;
-    return parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds);
+  calculateDuration(startTime: string, endTime: string): string {
+    if (!startTime || !endTime) return '';
+    
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const diffSeconds = Math.floor((end.getTime() - start.getTime()) / 1000);
+    
+    const hours = Math.floor(diffSeconds / 3600);
+    const minutes = Math.floor((diffSeconds % 3600) / 60);
+    const seconds = diffSeconds % 60;
+    
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  },
+
+  calculateDurationInSeconds(startTime: string, endTime: string): number {
+    if (!startTime || !endTime) return 0;
+    
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    return Math.floor((end.getTime() - start.getTime()) / 1000);
   },
 
   async downloadFile(path: string): Promise<Blob> {
@@ -203,7 +242,9 @@ export const reconService = {
       // Update recon status
       const { error: reconError } = await supabase
         .from('recons')
-        .update({ recon_time: new Date().toISOString() })
+        .update({ 
+          recon_time: new Date().toISOString()
+        })
         .eq('id', reconId);
 
       if (reconError) throw reconError;
