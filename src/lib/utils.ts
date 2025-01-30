@@ -72,6 +72,22 @@ export function formatToStandardDate(dateStr: string): string {
   return cleanDate;
 }
 
+// Format duration in seconds to human readable format
+export function formatDuration(seconds: number): string {
+  if (!seconds) return '0s';
+  
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = seconds % 60;
+
+  const parts = [];
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+  if (remainingSeconds > 0) parts.push(`${remainingSeconds}s`);
+
+  return parts.join(' ');
+}
+
 // Date formatting utilities
 export function formatDate(date: string | number | Date): string {
   if (!date) return '';
@@ -227,8 +243,6 @@ export function formatDateToMMM(date: string): string {
 export const createLookupKey = (record: any): string => {
   return `${record.employee_id?.toString()?.toLowerCase()?.trim()}_${record.name?.toString()?.toLowerCase()?.trim()}_${normalizeRelationship(record.relationship)?.toLowerCase()}`;
 };
-
-
 
 export const sanitizeName = (name: string): string => {
   if (!name) return '';

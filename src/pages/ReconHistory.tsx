@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getReconHistory, getFileUrl } from '@/lib/supabase';
-import { formatDistanceToNow, format } from 'date-fns';
+import { reconService } from '@/services/reconService';
+import { format, subDays } from 'date-fns';
 import {
   Table,
   TableBody,
@@ -19,47 +19,137 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Search,
-  Download,
   Clock,
   FileText,
   CheckCircle,
   XCircle,
   ChevronRight,
-  X,
+  ChevronLeft,
+  Loader2,
 } from 'lucide-react';
 import { SummaryTab } from '@/components/SummaryTab';
 import { Header } from '@/components/Header';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AnalyticsDashboard } from '@/components/analytics/AnalyticsDashboard';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+
+interface ReconFile {
+  id: string;
+  file_type: string;
+  storage_path: string;
+  record_count: number;
+}
+
+interface ReconSummary {
+  id: string;
+  summary: any;
+}
+
+interface Recon {
+  id: string;
+  company_name: string;
+  policy_name: string;
+  insurer_name: string;
+  is_exported: boolean;
+  created_by_id: string;
+  created_by_email: string;
+  created_by_name: string;
+  start_time: string;
+  recon_time: string;
+  export_time: string;
+  time_to_recon: string;
+  time_to_export: string;
+  recon_files: ReconFile[];
+  recon_summary: ReconSummary[];
+}
+
+const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
 export function ReconHistory() {
   const navigate = useNavigate();
-  const [recons, setRecons] = useState([]);
+  const [recons, setRecons] = useState<Recon[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedRecon, setSelectedRecon] = useState(null);
+  const [selectedRecon, setSelectedRecon] = useState<Recon | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [activeTab, setActiveTab] = useState('history');
+  const [dateRange, setDateRange] = useState({
+    from: subDays(new Date(), 30),
+    to: new Date()
+  });
+  const [analytics, setAnalytics] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [downloadingFiles, setDownloadingFiles] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
     loadReconHistory();
-  }, []);
+  }, [page, pageSize, searchTerm]);
+
+  useEffect(() => {
+    if (activeTab === 'analytics') {
+      loadAnalytics();
+    }
+  }, [activeTab, dateRange]);
 
   const loadReconHistory = async () => {
     try {
-      const data = await getReconHistory();
-      setRecons(data);
+      setLoading(true);
+      const { data, count } = await reconService.getReconHistory(page, pageSize, searchTerm);
+      setRecons(data || []);
+      setTotalRecords(count || 0);
     } catch (error) {
       console.error('Error loading recon history:', error);
+      setRecons([]);
+      setTotalRecords(0);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredRecons = recons.filter(recon => 
-    recon.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    recon.policy_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    recon.insurer_name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const loadAnalytics = async () => {
+    try {
+      setAnalyticsLoading(true);
+      const data = await reconService.getAnalytics(dateRange.from, dateRange.to);
+      setAnalytics(data);
+    } catch (error) {
+      console.error('Error loading analytics:', error);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
 
-  const formatDuration = (duration: string) => {
+  const handleDownload = async (file: ReconFile) => {
+    try {
+      setDownloadingFiles(prev => ({ ...prev, [file.id]: true }));
+      const blob = await reconService.downloadFile(file.storage_path);
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.original_name || `${file.file_type}_data.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+    } finally {
+      setDownloadingFiles(prev => ({ ...prev, [file.id]: false }));
+    }
+  };
+
+  const formatDuration = (duration: string | null | undefined): string => {
     if (!duration) return '-';
     const match = duration.match(/(\d+):(\d+):(\d+)/);
     if (!match) return duration;
@@ -67,6 +157,17 @@ export function ReconHistory() {
     const [_, hours, minutes, seconds] = match;
     return `${hours}h ${minutes}m ${seconds}s`;
   };
+
+  const formatDateTime = (dateStr: string | null | undefined): string => {
+    if (!dateStr) return '-';
+    try {
+      return format(new Date(dateStr), 'dd MMM yyyy, hh:mm a');
+    } catch (error) {
+      return '-';
+    }
+  };
+
+  const totalPages = Math.ceil(totalRecords / pageSize);
 
   return (
     <div className="min-h-screen bg-background">
@@ -82,152 +183,224 @@ export function ReconHistory() {
 
       {/* Main Content */}
       <main className="p-6">
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by company, policy, or insurer..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-        </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="history">History</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          </TabsList>
 
-        <div className="bg-white rounded-lg border shadow-sm">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Company & Policy</TableHead>
-                <TableHead>Insurer</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Created By</TableHead>
-                <TableHead>Time to Recon</TableHead>
-                <TableHead>Time to Export</TableHead>
-                <TableHead>Files</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8">
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                      <p className="text-muted-foreground">Loading history...</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : filteredRecons.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8">
-                    <p className="text-muted-foreground">No reconciliations found</p>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredRecons.map((recon) => (
-                  <TableRow key={recon.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{recon.company_name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {recon.policy_name}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{recon.insurer_name}</TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">
-                          {format(new Date(recon.start_time), 'dd MMM yyyy')}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {format(new Date(recon.start_time), 'hh:mm a')}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{recon.created_by_name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {recon.created_by_email}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
-                        {formatDuration(recon.time_to_recon)}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
-                        {formatDuration(recon.time_to_export)}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        {recon.recon_files.map((file) => (
-                          <a
-                            key={file.id}
-                            href={getFileUrl(file.storage_path)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 text-sm text-primary hover:underline"
-                          >
-                            <FileText className="h-3 w-3" />
-                            {file.file_type} ({file.record_count} records)
-                          </a>
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {recon.is_exported ? (
-                        <div className="flex items-center gap-2 text-green-600">
-                          <CheckCircle className="h-4 w-4" />
-                          <span>Exported</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2 text-amber-600">
-                          <XCircle className="h-4 w-4" />
-                          <span>Not Exported</span>
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedRecon(recon)}
-                        className="gap-2"
-                      >
-                        View Summary
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
+          <TabsContent value="history" className="mt-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by company, policy, or insurer..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setPage(1); // Reset to first page on search
+                  }}
+                  className="pl-9"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Show</span>
+                <Select
+                  value={pageSize.toString()}
+                  onValueChange={(value) => {
+                    setPageSize(parseInt(value));
+                    setPage(1); // Reset to first page when changing page size
+                  }}
+                >
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAGE_SIZE_OPTIONS.map(size => (
+                      <SelectItem key={size} value={size.toString()}>
+                        {size}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-sm text-muted-foreground">entries</span>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg border shadow-sm">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Company & Policy</TableHead>
+                    <TableHead>Insurer</TableHead>
+                    <TableHead>Created By & Date</TableHead>
+                    <TableHead>Status & Duration</TableHead>
+                    <TableHead>Files</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8">
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                          <p className="text-muted-foreground">Loading history...</p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : recons.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8">
+                        <p className="text-muted-foreground">No reconciliations found</p>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    recons.map((recon) => (
+                      <TableRow key={recon.id}>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{recon.company_name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {recon.policy_name}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>{recon.insurer_name}</TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{recon.created_by_name || 'Unknown'}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {recon.created_by_email || 'No email'}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {formatDateTime(recon.start_time)}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              {recon.is_exported ? (
+                                <div className="flex items-center gap-2 text-green-600 text-sm">
+                                  <CheckCircle className="h-4 w-4" />
+                                  <span>Exported</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2 text-amber-600 text-sm">
+                                  <XCircle className="h-4 w-4" />
+                                  <span>Not Exported</span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-3 w-3" />
+                                <span>Recon: {formatDuration(recon.time_to_recon)}</span>
+                              </div>
+                              {recon.is_exported && (
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-3 w-3" />
+                                  <span>Export: {formatDuration(recon.time_to_export)}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            {recon.recon_files?.map((file) => (
+                              <button
+                                key={file.id}
+                                onClick={() => handleDownload(file)}
+                                className="flex items-center gap-2 text-sm text-primary hover:underline"
+                                disabled={downloadingFiles[file.id]}
+                              >
+                                {downloadingFiles[file.id] ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <FileText className="h-3 w-3" />
+                                )}
+                                {file.file_type} ({file.record_count} records)
+                              </button>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedRecon(recon)}
+                            className="gap-2"
+                          >
+                            View Summary
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+
+              {/* Pagination */}
+              <div className="flex items-center justify-between px-4 py-4 border-t">
+                <div className="text-sm text-muted-foreground">
+                  Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, totalRecords)} of {totalRecords} entries
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(page - 1)}
+                    disabled={page === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <div className="text-sm">
+                    Page {page} of {totalPages}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(page + 1)}
+                    disabled={page === totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="analytics" className="mt-6">
+            <div className="mb-6">
+              <DateRangePicker
+                date={{ from: dateRange.from, to: dateRange.to }}
+                onDateChange={setDateRange}
+              />
+            </div>
+
+            {analyticsLoading ? (
+              <div className="flex items-center justify-center h-[400px]">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                  <p className="text-muted-foreground">Loading analytics...</p>
+                </div>
+              </div>
+            ) : analytics ? (
+              <AnalyticsDashboard data={analytics} />
+            ) : null}
+          </TabsContent>
+        </Tabs>
       </main>
 
       {/* Summary Sheet */}
       <Sheet open={!!selectedRecon} onOpenChange={() => setSelectedRecon(null)}>
         <SheetContent className="w-full max-w-3xl sm:max-w-3xl">
-          <SheetHeader className="space-y-1">
+          <SheetHeader className="flex flex-col">
             <div className="flex items-center justify-between">
               <SheetTitle>Reconciliation Summary</SheetTitle>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setSelectedRecon(null)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
             </div>
             {selectedRecon && (
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -235,13 +408,13 @@ export function ReconHistory() {
                 <div>•</div>
                 <div>{selectedRecon.policy_name}</div>
                 <div>•</div>
-                <div>{format(new Date(selectedRecon.start_time), 'dd MMM yyyy')}</div>
+                <div>{formatDateTime(selectedRecon.start_time)}</div>
               </div>
             )}
           </SheetHeader>
           <div className="mt-6">
-            {selectedRecon?.recon_summary && (
-              <SummaryTab reconData={selectedRecon.recon_summary} />
+            {selectedRecon?.recon_summary?.[0]?.summary && (
+              <SummaryTab reconData={selectedRecon.recon_summary[0].summary} />
             )}
           </div>
         </SheetContent>

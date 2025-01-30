@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { auth } from '@/lib/firebase';
+import * as XLSX from 'xlsx';
 
 export const reconService = {
   async startRecon(data: {
@@ -28,11 +29,7 @@ export const reconService = {
         .select()
         .single();
 
-      if (error) {
-        console.error('Error starting recon:', error);
-        throw new Error('Failed to start reconciliation');
-      }
-      
+      if (error) throw error;
       return recon;
     } catch (error) {
       console.error('Failed to start recon:', error);
@@ -40,14 +37,26 @@ export const reconService = {
     }
   },
 
-  async uploadFile(reconId: string, file: File, fileType: 'hr' | 'insurer' | 'genome', recordCount: number) {
+  async uploadFile(reconId: string, data: any[], fileType: 'hr' | 'insurer' | 'genome', recordCount: number) {
     try {
-      const path = `${reconId}/${fileType}/${file.name}`;
+      // Convert data to Excel format
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, fileType);
+      
+      // Generate Excel file
+      const excelBuffer = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
+      const file = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      
+      const fileName = `${fileType}_data_${Date.now()}.xlsx`;
+      const path = `${reconId}/${fileType}/${fileName}`;
       
       // Upload file to storage
       const { data: storageData, error: storageError } = await supabase.storage
         .from('recon-files')
-        .upload(path, file);
+        .upload(path, file, {
+          contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        });
 
       if (storageError) throw storageError;
 
@@ -58,7 +67,7 @@ export const reconService = {
           recon_id: reconId,
           file_type: fileType,
           storage_path: path,
-          original_name: file.name,
+          original_name: fileName,
           record_count: recordCount,
         })
         .select()
@@ -69,6 +78,123 @@ export const reconService = {
     } catch (error) {
       console.error('Failed to upload file:', error);
       throw new Error('Failed to upload file');
+    }
+  },
+
+  async getReconHistory(page = 1, pageSize = 10, searchTerm = '') {
+    try {
+      let query = supabase
+        .from('recons')
+        .select(`
+          *,
+          recon_files (*),
+          recon_summary (*)
+        `)
+        .order('start_time', { ascending: false });
+
+      if (searchTerm) {
+        query = query.or(`
+          company_name.ilike.%${searchTerm}%,
+          policy_name.ilike.%${searchTerm}%,
+          insurer_name.ilike.%${searchTerm}%
+        `);
+      }
+
+      const { data, error, count } = await query
+        .range((page - 1) * pageSize, page * pageSize - 1)
+        .select('*', { count: 'exact' });
+
+      if (error) throw error;
+      return { data, count };
+    } catch (error) {
+      console.error('Failed to get recon history:', error);
+      throw error;
+    }
+  },
+
+  async getAnalytics(startDate: Date, endDate: Date) {
+    try {
+      const { data, error } = await supabase
+        .from('recons')
+        .select('*')
+        .gte('start_time', startDate.toISOString())
+        .lte('start_time', endDate.toISOString());
+
+      if (error) throw error;
+
+      // Calculate analytics
+      const totalRecons = data.length;
+      
+      // Calculate average recon time
+      const reconTimes = data
+        .filter(recon => recon.time_to_recon)
+        .map(recon => this.parseDuration(recon.time_to_recon));
+      
+      const avgReconTime = reconTimes.length > 0 
+        ? reconTimes.reduce((acc, time) => acc + time, 0) / reconTimes.length
+        : 0;
+
+      // Calculate average export time
+      const exportTimes = data
+        .filter(recon => recon.time_to_export)
+        .map(recon => this.parseDuration(recon.time_to_export));
+      
+      const avgExportTime = exportTimes.length > 0
+        ? exportTimes.reduce((acc, time) => acc + time, 0) / exportTimes.length
+        : 0;
+
+      // Group by insurer
+      const insurerSplit = data.reduce((acc, recon) => {
+        acc[recon.insurer_name] = (acc[recon.insurer_name] || 0) + 1;
+        return acc;
+      }, {});
+
+      // Group by user
+      const userSplit = data.reduce((acc, recon) => {
+        const name = recon.created_by_name || 'Unknown User';
+        acc[name] = (acc[name] || 0) + 1;
+        return acc;
+      }, {});
+
+      // Group by day
+      const dailyRecons = data.reduce((acc, recon) => {
+        const date = new Date(recon.start_time).toISOString().split('T')[0];
+        acc[date] = (acc[date] || 0) + 1;
+        return acc;
+      }, {});
+
+      return {
+        totalRecons,
+        avgReconTime,
+        avgExportTime,
+        insurerSplit,
+        userSplit,
+        dailyRecons
+      };
+    } catch (error) {
+      console.error('Failed to get analytics:', error);
+      throw error;
+    }
+  },
+
+  parseDuration(duration: string): number {
+    const match = duration.match(/(\d+):(\d+):(\d+)/);
+    if (!match) return 0;
+    const [_, hours, minutes, seconds] = match;
+    return parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds);
+  },
+
+  async downloadFile(path: string): Promise<Blob> {
+    try {
+      const { data, error } = await supabase.storage
+        .from('recon-files')
+        .download(path);
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Failed to download file:', error);
+      throw error;
     }
   },
 
@@ -87,15 +213,7 @@ export const reconService = {
         .from('recon_summary')
         .insert({
           recon_id: reconId,
-          perfect_matches: summary.perfectMatches,
-          additions: summary.tobeEndorsed_add,
-          manual_additions: summary.tobeEndorsed_add_manual,
-          ar_update_additions: summary.tobeEndorsed_add_ar_update_manual,
-          edits: summary.tobeEndorsed_edit,
-          offboards: summary.tobeEndorsed_offboard,
-          offboard_confirmations: summary.toBeEndorsed_offboard_conf,
-          manual_offboards: summary.toBeEndorsed_offboard_conf_manual,
-          offboard_or_adds: summary.toBeEndorsed_offboard_or_add,
+          summary
         });
 
       if (summaryError) throw summaryError;
