@@ -1,5 +1,5 @@
 import React from 'react';
-import { RotateCcw, RefreshCw, User, Building2, Wallet, Download } from 'lucide-react';
+import { RotateCcw, RefreshCw, User, Building2, Wallet, Download, History, ArrowLeft } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   DropdownMenu,
@@ -16,6 +16,8 @@ import { Company, Policy } from '@/types';
 import * as XLSX from 'xlsx';
 import { formatDate, formatDateToMMM } from '@/lib/utils';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { reconService } from '@/services/reconService';
 
 interface HeaderProps {
   company: Company | null;
@@ -24,99 +26,108 @@ interface HeaderProps {
   onReconData: () => void;
   onReset: () => void;
   hasReconData: boolean;
-  reconData: any | null; // Add this
+  reconData: any | null;
+  currentRecon?: any;
 }
 
-export function Header({ company, policy, onRestart, onReconData, onReset, hasReconData, reconData }: HeaderProps) {
+export function Header({ company, policy, onRestart, onReconData, onReset, hasReconData, reconData, currentRecon }: HeaderProps) {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const isSetupMode = !company && !policy;
+  const isHistoryPage = location.pathname === '/history';
 
-  const handleExport = () => {
-    if (!policy || !reconData) return;
-  
-    const workbook = XLSX.utils.book_new();
-    const date = new Date();
-    const formattedDate = formatDateToMMM(formatDate(date));
+
+  const handleExport = async () => {
+    if (!currentRecon || !policy || !reconData) return;
+    try {
+     const workbook = XLSX.utils.book_new();
+      const date = new Date();
+      const formattedDate = formatDateToMMM(formatDate(date));
+      
+      // ADD sheet
+      if (reconData.tobeEndorsed_add?.members?.length > 0 || reconData?.tobeEndorsed_add_ar_update_manual?.members?.length > 0 || reconData.tobeEndorsed_add_manual?.members?.length > 0 || reconData.toBeEndorsed_offboard_or_add?.members?.length > 0) {
+        const addData = [
+          ...reconData.tobeEndorsed_add?.members || [],
+          ...reconData.tobeEndorsed_add_manual?.members || [],
+          ...reconData.tobeEndorsed_add_ar_update_manual?.members || [],
+          ...reconData.toBeEndorsed_offboard_or_add?.members || []
+        ].map(member => ({
+          'Employee ID': member.employee_id,
+          'Relationship to Account Holder': member.relationship,
+          'Name': member.name,
+          'Coverage Start Date (DD/MMM/YYYY)': formatDateToMMM(member.coverage_start_date_dd_mmm_yyyy),
+          'Enrolment Due Date (DD/MMM/YYYY)': formatDateToMMM(member.enrolment_due_date_dd_mmm_yyyy),
+          'Slab ID': member.slab_id,
+          'Mobile': member.mobile,
+          'Email Address': member.email_address,
+          'Date of Birth (DD/MMM/YYYY)': formatDateToMMM(member.date_of_birth_dd_mmm_yyyy),
+          'Gender': member.gender,
+          'CTC': member.ctc,
+          'Exception': '',
+          'Remark': member.remark
+        }));
+        
+        const addSheet = XLSX.utils.json_to_sheet(addData);
+        XLSX.utils.book_append_sheet(workbook, addSheet, 'ADD');
+      }
     
-    // ADD sheet
-    if (reconData.tobeEndorsed_add?.members?.length > 0 || reconData?.tobeEndorsed_add_ar_update_manual?.members?.length > 0 || reconData.tobeEndorsed_add_manual?.members?.length > 0 || reconData.toBeEndorsed_offboard_or_add?.members?.length > 0) {
-      const addData = [
-        ...reconData.tobeEndorsed_add?.members || [],
-        ...reconData.tobeEndorsed_add_manual?.members || [],
-        ...reconData.tobeEndorsed_add_ar_update_manual?.members || [],
-        ...reconData.toBeEndorsed_offboard_or_add?.members || []
-      ].map(member => ({
-        'Employee ID': member.employee_id,
-        'Relationship to Account Holder': member.relationship,
-        'Name': member.name,
-        'Coverage Start Date (DD/MMM/YYYY)': formatDateToMMM(member.coverage_start_date_dd_mmm_yyyy),
-        'Enrolment Due Date (DD/MMM/YYYY)': formatDateToMMM(member.enrolment_due_date_dd_mmm_yyyy),
-        'Slab ID': member.slab_id,
-        'Mobile': member.mobile,
-        'Email Address': member.email_address,
-        'Date of Birth (DD/MMM/YYYY)': formatDateToMMM(member.date_of_birth_dd_mmm_yyyy),
-        'Gender': member.gender,
-        'CTC': member.ctc,
-        'Exception': '',
-        'Remark': member.remark
-      }));
-      
-      const addSheet = XLSX.utils.json_to_sheet(addData);
-      XLSX.utils.book_append_sheet(workbook, addSheet, 'ADD');
+      // EDIT sheet
+      if (reconData.tobeEndorsed_edit?.members?.length > 0) {
+        const editData = reconData.tobeEndorsed_edit.members.map(member => ({
+          'User ID': member.user_id,
+          'Relationship to Account Holder': member.relationship,
+          'Name': member.name,
+          'Coverage Start Date (DD/MMM/YYYY)': formatDateToMMM(member.coverage_start_date_dd_mmm_yyyy),
+          'Enrolment Due Date (DD/MMM/YYYY)': formatDateToMMM(member.enrolment_due_date_dd_mmm_yyyy),
+          'Slab ID': member.slab_id,
+          'Mobile': member.mobile,
+          'Email Address': member.email_address,
+          'Date of Birth (DD/MMM/YYYY)': formatDateToMMM(member.date_of_birth_dd_mmm_yyyy),
+          'Gender': member.gender,
+          'CTC': member.ctc,
+          'Exception': '',
+          'Mismatch Fields': member.mismatch_fields,
+          'HR Values': member.hr_values,
+          'Insurer Values': member.insurer_values,
+          'Genome Values': member.genome_values,
+        }));
+        
+        const editSheet = XLSX.utils.json_to_sheet(editData);
+        XLSX.utils.book_append_sheet(workbook, editSheet, 'EDIT');
+      }
+    
+      // OFFBOARD sheet
+      if (reconData.tobeEndorsed_offboard?.members?.length > 0 || 
+          reconData.toBeEndorsed_offboard_conf?.members?.length > 0 ||
+          reconData.toBeEndorsed_offboard_conf_manual?.members?.length > 0) {
+        const offboardData = [
+          ...reconData.tobeEndorsed_offboard?.members || [],
+          ...reconData.toBeEndorsed_offboard_conf?.members || [],
+          ...reconData.toBeEndorsed_offboard_conf_manual?.members || [],
+          ...reconData.toBeEndorsed_offboard_or_add?.members || []
+        ].map(member => ({
+          'User ID': member.user_id,
+          'Employee ID': member.employee_id,
+          'Name': member.name,
+          'Gender': member.gender,
+          'Relationship to Account Holder': member.relationship,
+          'Date of Leaving (DD/MMM/YYYY)': formatDateToMMM(member.date_of_leaving_dd_mmm_yyyy),
+          'Policy Exception': member.policy_exception || '',
+          'Remark': member.remark
+        }));
+        
+        const offboardSheet = XLSX.utils.json_to_sheet(offboardData);
+        XLSX.utils.book_append_sheet(workbook, offboardSheet, 'OFFBOARD');
+      }
+    
+      // Save the file
+      const fileName = `recon_${policy.nickName.replace(/\s+/g, '_')}_${formattedDate}_insync.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+      await reconService.markExported(currentRecon.id);
+    } catch (error) {
+      console.error('Failed to mark recon as exported:', error);
     }
-  
-    // EDIT sheet
-    if (reconData.tobeEndorsed_edit?.members?.length > 0) {
-      const editData = reconData.tobeEndorsed_edit.members.map(member => ({
-        'User ID': member.user_id,
-        'Relationship to Account Holder': member.relationship,
-        'Name': member.name,
-        'Coverage Start Date (DD/MMM/YYYY)': formatDateToMMM(member.coverage_start_date_dd_mmm_yyyy),
-        'Enrolment Due Date (DD/MMM/YYYY)': formatDateToMMM(member.enrolment_due_date_dd_mmm_yyyy),
-        'Slab ID': member.slab_id,
-        'Mobile': member.mobile,
-        'Email Address': member.email_address,
-        'Date of Birth (DD/MMM/YYYY)': formatDateToMMM(member.date_of_birth_dd_mmm_yyyy),
-        'Gender': member.gender,
-        'CTC': member.ctc,
-        'Exception': '',
-        'Mismatch Fields': member.mismatch_fields,
-        'HR Values': member.hr_values,
-        'Insurer Values': member.insurer_values,
-        'Genome Values': member.genome_values,
-      }));
-      
-      const editSheet = XLSX.utils.json_to_sheet(editData);
-      XLSX.utils.book_append_sheet(workbook, editSheet, 'EDIT');
-    }
-  
-    // OFFBOARD sheet
-    if (reconData.tobeEndorsed_offboard?.members?.length > 0 || 
-        reconData.toBeEndorsed_offboard_conf?.members?.length > 0 ||
-        reconData.toBeEndorsed_offboard_conf_manual?.members?.length > 0) {
-      const offboardData = [
-        ...reconData.tobeEndorsed_offboard?.members || [],
-        ...reconData.toBeEndorsed_offboard_conf?.members || [],
-        ...reconData.toBeEndorsed_offboard_conf_manual?.members || [],
-        ...reconData.toBeEndorsed_offboard_or_add?.members || []
-      ].map(member => ({
-        'User ID': member.user_id,
-        'Employee ID': member.employee_id,
-        'Name': member.name,
-        'Gender': member.gender,
-        'Relationship to Account Holder': member.relationship,
-        'Date of Leaving (DD/MMM/YYYY)': formatDateToMMM(member.date_of_leaving_dd_mmm_yyyy),
-        'Policy Exception': member.policy_exception || '',
-        'Remark': member.remark
-      }));
-      
-      const offboardSheet = XLSX.utils.json_to_sheet(offboardData);
-      XLSX.utils.book_append_sheet(workbook, offboardSheet, 'OFFBOARD');
-    }
-  
-    // Save the file
-    const fileName = `recon_${policy.nickName.replace(/\s+/g, '_')}_${formattedDate}_insync.xlsx`;
-    XLSX.writeFile(workbook, fileName);
   };
 
   return (
@@ -130,16 +141,35 @@ export function Header({ company, policy, onRestart, onReconData, onReset, hasRe
           </div>
           
           <div className="flex items-center gap-3">
-          {!isSetupMode && reconData && (
-            <Button 
-              variant="outline"
-              onClick={handleExport}
-              className="gap-2 border-[#025F4C]/20 text-[#025F4C] hover:bg-[#025F4C]/5 export-data-cta"
-            >
-              <Download className="w-4 h-4" />
-              Export Data
-            </Button>
-          )}
+            {!isSetupMode && reconData && (
+              <Button 
+                variant="outline"
+                onClick={handleExport}
+                className="gap-2 border-[#025F4C]/20 text-[#025F4C] hover:bg-[#025F4C]/5 export-data-cta"
+              >
+                <Download className="w-4 h-4" />
+                Export Data
+              </Button>
+            )}
+            {isHistoryPage ? (
+              <Button
+                variant="outline"
+                onClick={() => navigate('/')}
+                className="gap-2 border-[#025F4C]/20 text-[#025F4C] hover:bg-[#025F4C]/5"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={() => navigate('/history')}
+                className="gap-2 border-[#025F4C]/20 text-[#025F4C] hover:bg-[#025F4C]/5"
+              >
+                <History className="w-4 h-4" />
+                History
+              </Button>
+            )}
             {!isSetupMode && (
               <div>
                 {hasReconData ? (

@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -12,3 +12,18 @@ const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+
+// Email/Password Auth Functions
+export const signUpWithEmail = async (email: string, password: string) => {
+  if (import.meta.env.MODE !== 'development') {
+    throw new Error('Email/password authentication is only available in development mode');
+  }
+  return createUserWithEmailAndPassword(auth, email, password);
+};
+
+export const signInWithEmail = async (email: string, password: string) => {
+  if (import.meta.env.MODE !== 'development') {
+    throw new Error('Email/password authentication is only available in development mode');
+  }
+  return signInWithEmailAndPassword(auth, email, password);
+};

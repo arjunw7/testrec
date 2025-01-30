@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoginPage } from './pages/LoginPage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReconciliationInterface } from './pages/ReconciliationInterface';
+import { ReconHistory } from './pages/ReconHistory';
 import { Button } from './components/ui/button';
 import { HelpCircle } from 'lucide-react';
 import { Tooltip, TooltipTrigger,TooltipContent } from './components/ui/tooltip';
@@ -26,28 +27,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   
   if (!user) {
     return <Navigate to="/login" replace />;
-  }
-  if(user) {
-    Featurebase("initialize_feedback_widget", {
-      organization: "loophealth",
-      theme: "light",
-      placement: "right",
-      name: user?.displayName,
-      email: user?.email,
-      locale: "en",
-      metadata: null
-    });
-    pendo.initialize({
-      visitor: {
-          id: user?.email,
-          email: user?.email,
-          firstName: user?.displayName,
-        },
-        account: {
-            id: 'loop',
-            accountName: 'loop-health',
-        }
-    });
   }
   
   return children;
@@ -112,6 +91,14 @@ export default function App() {
                     <LoginPage />
                   </AuthenticatedRoute>
                 } 
+              />
+              <Route
+                path="/history"
+                element={
+                  <ProtectedRoute>
+                    <ReconHistory />
+                  </ProtectedRoute>
+                }
               />
               <Route
                 path="/*"

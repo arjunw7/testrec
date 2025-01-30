@@ -32,6 +32,7 @@ import { isRequiredDataAvailable, createLookupKey, cleanValue, hasNameErrors, sa
 import { SanitizeNamesButton } from '../components/SanitizeNamesButton';
 import { apiClient } from '../services/apiClient';
 import { LoadingDialog } from '@/components/LoadingDialog';
+import { reconService } from '@/services/reconService';
 
 // In App.tsx, add this component:
 const ValidationErrorDialog = ({
@@ -123,6 +124,8 @@ function ReconciliationInterfaceContent() {
   const [showMapper, setShowMapper] = useState<string | null>(null);
   const [loadingRoster, setLoadingRoster] = useState(false);
   const [isReconciling, setIsReconciling] = useState(false);
+  const [currentRecon, setCurrentRecon] = useState<{ id: string } | null>(null);
+
 
   const [dataSources, setDataSources] = useState<{
     [key: string]: {
@@ -255,6 +258,12 @@ function ReconciliationInterfaceContent() {
     loadGenomeRoster();
   }, [policy]);
 
+  useEffect(() => {
+    if (company && policy && step === 6) {
+      startNewRecon();
+    }
+  }, [company, policy, step]);
+  
   // Set initial active tab based on available tabs
   useEffect(() => {
     const availableTabs = [...getAvailableTabs(), 'summary'].filter(Boolean);
@@ -295,57 +304,84 @@ function ReconciliationInterfaceContent() {
     setReconData(null);
   };
 
-  const handleReconData = () => {
-    if (isReconciling) return;
+  const startNewRecon = async () => {
+    if (!company || !policy) return;
+    
+    try {
+      const recon = await reconService.startRecon({
+        companyId: company.id,
+        companyName: company.name,
+        policyId: policy.id,
+        policyName: policy.nickName,
+        insurerName: policy.insurerName
+      });
+      setCurrentRecon(recon);
+    } catch (error) {
+      console.error('Failed to start recon:', error);
+    }
+  };
+
+  const handleReconData = async () => {
+    if (!currentRecon || isReconciling) return;
+    
     if (!dataSources.insurer?.data || !dataSources.genome?.data) {
       setShowInsurerWarning(true);
       return;
     }
+  
     const counts = checkInvalidRecords();
     const hasInvalidRecords = Object.values(counts).some(count => count > 0);
-
+  
     if (hasInvalidRecords) {
       setInvalidCounts(counts);
       setShowValidationDialog(true);
       return;
     }
-
-    if (!dataSources.insurer?.data || !dataSources.genome?.data) {
-      alert('Please upload and map both Insurer and Genome data to perform reconciliation');
-      return;
-    }
-
+  
     setIsReconciling(true);
-
+  
     try {
-      // Wrap the reconciliation in setTimeout to allow UI to update
-      setTimeout(() => {
-        const existingData = {
-          add: dataSources.add?.data || [],
-          edit: dataSources.edit?.data || [],
-          offboard: dataSources.offboard?.data || []
-        };
-    
+      setTimeout(async () => {
         const result = reconcileData(
           dataSources.hr?.data || [],
           dataSources.insurer.data,
           dataSources.genome.data,
           slabMapping,
-          existingData,
+          {
+            add: dataSources.add?.data || [],
+            edit: dataSources.edit?.data || [],
+            offboard: dataSources.offboard?.data || []
+          },
           policyType,
         );
-        setReconData({
-          perfectMatches: result?.perfectMatches,
-          tobeEndorsed_add: result?.tobeEndorsed_add,
-          tobeEndorsed_add_manual: result?.tobeEndorsed_add_manual,
-          tobeEndorsed_add_ar_update_manual: result?.tobeEndorsed_add_ar_update_manual,
-          tobeEndorsed_edit: result?.tobeEndorsed_edit,
-          tobeEndorsed_offboard: result?.tobeEndorsed_offboard,
-          toBeEndorsed_offboard_conf: result?.toBeEndorsed_offboard_conf,
-          toBeEndorsed_offboard_conf_manual: result?.toBeEndorsed_offboard_conf_manual,
-          toBeEndorsed_offboard_or_add: result?.toBeEndorsed_offboard_or_add,
+  
+        // Save recon results to Supabase
+        await reconService.completeRecon(currentRecon.id, {
+          perfectMatches: result.perfectMatches,
+          tobeEndorsed_add: result.tobeEndorsed_add,
+          tobeEndorsed_add_manual: result.tobeEndorsed_add_manual,
+          tobeEndorsed_add_ar_update_manual: result.tobeEndorsed_add_ar_update_manual,
+          tobeEndorsed_edit: result.tobeEndorsed_edit,
+          tobeEndorsed_offboard: result.tobeEndorsed_offboard,
+          toBeEndorsed_offboard_conf: result.toBeEndorsed_offboard_conf,
+          toBeEndorsed_offboard_conf_manual: result.toBeEndorsed_offboard_conf_manual,
+          toBeEndorsed_offboard_or_add: result.toBeEndorsed_offboard_or_add,
         });
-    
+  
+        // Update local state
+        setReconData({
+          perfectMatches: result.perfectMatches,
+          tobeEndorsed_add: result.tobeEndorsed_add,
+          tobeEndorsed_add_manual: result.tobeEndorsed_add_manual,
+          tobeEndorsed_add_ar_update_manual: result.tobeEndorsed_add_ar_update_manual,
+          tobeEndorsed_edit: result.tobeEndorsed_edit,
+          tobeEndorsed_offboard: result.tobeEndorsed_offboard,
+          toBeEndorsed_offboard_conf: result.toBeEndorsed_offboard_conf,
+          toBeEndorsed_offboard_conf_manual: result.toBeEndorsed_offboard_conf_manual,
+          toBeEndorsed_offboard_or_add: result.toBeEndorsed_offboard_or_add,
+        });
+  
+        // Update data sources
         setDataSources(prev => ({
           ...prev,
           add: {
@@ -370,6 +406,7 @@ function ReconciliationInterfaceContent() {
             fields: OFFBOARD_FIELDS
           }
         }));
+  
         setActiveTab('summary');
         setIsReconciling(false);
       }, 5000);
@@ -377,7 +414,6 @@ function ReconciliationInterfaceContent() {
       console.error('Reconciliation failed:', error);
       setIsReconciling(false);
     }
-    
   };
 
   const handleSearch = (tab: string, value: string) => {
@@ -387,24 +423,42 @@ function ReconciliationInterfaceContent() {
     }));
   };
 
-  const handleFileUpload = (source: string) => (headers: string[], rawData: any[], autoMapDependentSI) => {
-    setDataSources((prev) => ({
-      ...prev,
-      [source]: {
-        headers,
-        rawData,
-        data: [],
-        mapping: {},
-        fields: source === 'hr' ? HR_FIELDS :
-          source === 'insurer' ? INSURER_FIELDS :
-            source === 'genome' ? GENOME_FIELDS :
-              source === 'add' ? ADD_FIELDS :
-                source === 'edit' ? EDIT_FIELDS : OFFBOARD_FIELDS,
-      },
-    }));
-    setShowMapper(source);
-    setAutoMapDependentSumInsured(autoMapDependentSI)
+  const handleFileUpload = (source: string) => async (headers: string[], rawData: any[], autoMapDependentSI) => {
+    if (!currentRecon) return;
 
+    try {
+      // Create a blob from the raw data
+      const jsonData = JSON.stringify(rawData);
+      const blob = new Blob([jsonData], { type: 'application/json' });
+      const file = new File([blob], `${source}_data.json`, { type: 'application/json' });
+  
+      // Upload file to Supabase
+      await reconService.uploadFile(
+        currentRecon.id,
+        file,
+        source as 'hr' | 'insurer' | 'genome',
+        rawData.length
+      );
+
+      setDataSources((prev) => ({
+        ...prev,
+        [source]: {
+          headers,
+          rawData,
+          data: [],
+          mapping: {},
+          fields: source === 'hr' ? HR_FIELDS :
+            source === 'insurer' ? INSURER_FIELDS :
+              source === 'genome' ? GENOME_FIELDS :
+                source === 'add' ? ADD_FIELDS :
+                  source === 'edit' ? EDIT_FIELDS : OFFBOARD_FIELDS,
+        },
+      }));
+      setShowMapper(source);
+      setAutoMapDependentSumInsured(autoMapDependentSI)
+    } catch (error) {
+      console.error('Failed to upload file:', error);
+    }
   };
 
   const handleMappingChange = (source: string, mapping: { [key: string]: string }) => {
@@ -562,6 +616,7 @@ function ReconciliationInterfaceContent() {
           onReset={() => { }}
           hasReconData={!!reconData}
           reconData={reconData}
+          currentRecon={currentRecon}
         />
         <div className="flex-1 flex flex-col items-center justify-center px-4">
           <div className="w-full max-w-2xl -mt-10">

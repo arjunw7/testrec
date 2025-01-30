@@ -1,15 +1,21 @@
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Mail, Lock, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useState } from 'react';
+import { cn } from '@/lib/utils';
 
 export function LoginPage() {
-  const { signInWithGoogle } = useAuth();
+  const { signInWithGoogle, signInWithEmailPassword, signUpWithEmailPassword } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = async () => {
+  const handleGoogleLogin = async () => {
     if (isLoading) return;
     
     setIsLoading(true);
@@ -18,6 +24,28 @@ export function LoginPage() {
       navigate('/');
     } catch (error) {
       console.error('Login failed:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isLoading) return;
+
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      if (isSignUp) {
+        await signUpWithEmailPassword(email, password);
+      } else {
+        await signInWithEmailPassword(email, password);
+      }
+      navigate('/');
+    } catch (error: any) {
+      console.error('Auth failed:', error);
+      setError(error.message);
     } finally {
       setIsLoading(false);
     }
@@ -98,8 +126,73 @@ export function LoginPage() {
             <p className="mt-2 text-gray-600">Sign in to your account to continue</p>
           </div>
 
+          {import.meta.env.MODE === 'development' && (
+            <form onSubmit={handleEmailAuth} className="space-y-4">
+              <div>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    type="email"
+                    placeholder="Email address"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    type="password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+
+              {error && (
+                <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-3 rounded-lg">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  <p>{error}</p>
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="w-full"
+              >
+                {isLoading ? 'Please wait...' : isSignUp ? 'Sign Up' : 'Sign In'}
+              </Button>
+
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setIsSignUp(!isSignUp)}
+                  className="text-sm text-[#025F4C] hover:underline"
+                >
+                  {isSignUp ? 'Already have an account? Sign in' : 'Need an account? Sign up'}
+                </button>
+              </div>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-2 text-gray-500">Or continue with</span>
+                </div>
+              </div>
+            </form>
+          )}
+
           <Button
-            onClick={handleLogin}
+            onClick={handleGoogleLogin}
             disabled={isLoading}
             variant="outline"
             className="w-full flex items-center justify-between px-6 py-6 bg-white border-2 border-gray-200 rounded-xl text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors group h-auto"
@@ -112,6 +205,12 @@ export function LoginPage() {
             </div>
             <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" />
           </Button>
+
+          {import.meta.env.MODE === 'development' && (
+            <p className="text-xs text-center text-gray-500">
+              Email/password authentication is only available in development mode
+            </p>
+          )}
         </div>
       </div>
     </div>
