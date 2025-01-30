@@ -37,6 +37,7 @@ export function SummaryTab({ reconData }: SummaryTabProps) {
     perfectMatches: { members: [], message: '', description: '' },
     tobeEndorsed_add: { members: [], message: '', description: '' },
     tobeEndorsed_add_manual: { members: [], message: '', description: '', action: '' },
+    tobeEndorsed_add_ar_update_manual: { members: [], message: '', description: '', action: '' },
     tobeEndorsed_edit: { members: [], message: '', description: '' },
     tobeEndorsed_offboard: { members: [], message: '', description: '' },
     toBeEndorsed_offboard_conf: { members: [], message: '', description: '', action: '' },
@@ -53,7 +54,8 @@ export function SummaryTab({ reconData }: SummaryTabProps) {
     additions: [
       safeReconData.tobeEndorsed_add,
       safeReconData.tobeEndorsed_add_manual,
-      safeReconData.toBeEndorsed_offboard_or_add
+      safeReconData.toBeEndorsed_offboard_or_add,
+      safeReconData.tobeEndorsed_add_ar_update_manual,
     ].filter(list => list.members.length > 0),
     
     deletions: [

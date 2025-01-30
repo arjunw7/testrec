@@ -8,6 +8,7 @@ interface ReconData {
   offboardSheet2: any[];
   tobeEndorsed_add: any;
   tobeEndorsed_add_manual: any;
+  tobeEndorsed_add_ar_update_manual: any;
   tobeEndorsed_edit: any;
   tobeEndorsed_offboard: any;
   toBeEndorsed_offboard_conf: any;
@@ -142,8 +143,8 @@ const createMatchingKeys = (record: any, policyType: any): string[] => {
     // MISMATCH of Name along with some other field
 
     // Key 21: relationship + gender + DOB + SI -> Name and EID mismatch
-    keys.push(['relationship', 'gender', 'date_of_birth_dd_mmm_yyyy', 'sum_insured']
-      .map(field => normalizeFieldValue(field, record[field])).join('|'));
+    // keys.push(['relationship', 'gender', 'date_of_birth_dd_mmm_yyyy', 'sum_insured']
+    //   .map(field => normalizeFieldValue(field, record[field])).join('|'));
       
   } else {
     // Key 1: name + gender + sum_insured + ctc -> eid
@@ -180,19 +181,6 @@ const findMatchingRecord = (record: any, records: Map<string, any>[], policyType
     }
   }
   return null;
-};
-
-// Function to find matching record using multiple keys
-const findMultipleMatchingRecords = (record: any, records: Map<string, any>[], policyType: any): any => {
-  const keys = createMatchingKeys(record, policyType);
-  const matches = [];
-  for (const key of keys) {
-    for (const recordMap of records) {
-      const match = recordMap.get(key);
-      matches.push(match);
-    }
-  }
-  return matches;
 };
 
 const createUniqueKey = (record: any) => {
@@ -313,6 +301,13 @@ export const reconcileData = (
     action: 'Please add these members manually in the upcoming endorsement.'
   };
 
+  const tobeEndorsed_add_ar_update_manual = {
+    members: [],
+    message: 'Inactive members in Genome present in HR/insurer data',
+    description: 'These members are inactive in Genome\'s active roster but are present in insurer/HR data.',
+    action: 'Please validate if these members need to be activated in Genome.'
+  }
+
   const tobeEndorsed_edit = {
     members: JSON.parse(JSON.stringify(editData)) || [],
     message: 'New corrections in member details',
@@ -427,12 +422,24 @@ export const reconcileData = (
             genome_values: mismatches.genome.join(', ')
           });
         }
-        if (mismatches.fields?.length === 0) {
+        if (mismatches.fields?.length === 0 && genomeRecord?.is_active === 'Yes') {
           perfectlyMatchedMembers.push({
             ...genomeRecord,
             slab_id: calculateSlabId(Number(hrRecord.sum_insured), slabMapping)
           });
-        }
+        } else if(mismatches.fields?.length === 0 && genomeRecord?.is_active === 'No') {
+          const newRecord = {
+            ...genomeRecord,
+            slab_id: calculateSlabId(Number(genomeRecord.sum_insured), slabMapping),
+            remark: 'Update Active Roster',
+          };
+          addData.push(newRecord);
+          tobeEndorsed_add_ar_update_manual.members.push({
+            ...genomeRecord,
+            slab_id: calculateSlabId(Number(genomeRecord.sum_insured), slabMapping),
+            remark: 'Inactive in Genome but present in HR/Insurer roster.',
+          });
+       }
       } else if (!insurerRecord && !genomeRecord) {
         // New addition
         if (!isDuplicate(hrRecord, addData)) {
@@ -456,7 +463,7 @@ export const reconcileData = (
           tobeEndorsed_add_manual.members.push(newRecord);
         }
       } else if (!insurerRecord && genomeRecord) {
-        // TO DO : what to do if the member is inactive in genome? if inactive, do nothing
+        // TO DO -> DONE : what to do if the member is inactive in genome? if inactive, do nothing
         if (!addKeys.has(createUniqueKey(hrRecord))) {
           const newRecord = {
             ...hrRecord,
@@ -494,10 +501,22 @@ export const reconcileData = (
             genome_values: mismatches.genome.join(', ')
           });
         }
-        if (mismatches.fields?.length === 0) {
+        if (mismatches.fields?.length === 0 && genomeRecord?.is_active === 'Yes') {
           perfectlyMatchedMembers.push({
             ...genomeRecord,
             slab_id: calculateSlabId(Number(genomeRecord.sum_insured), slabMapping)
+          });
+        } else if(mismatches.fields?.length === 0 && genomeRecord?.is_active === 'No') {
+          const newRecord = {
+            ...genomeRecord,
+            slab_id: calculateSlabId(Number(genomeRecord.sum_insured), slabMapping),
+            remark: 'Update Active Roster',
+          };
+          addData.push(newRecord);
+          tobeEndorsed_add_ar_update_manual.members.push({
+            ...genomeRecord,
+            slab_id: calculateSlabId(Number(genomeRecord.sum_insured), slabMapping),
+            remark: 'Inactive in Genome but present in HR/Insurer roster.',
           });
         }
       }
@@ -547,16 +566,15 @@ export const reconcileData = (
           tobeEndorsed_add_manual.members.push(newRecord);
         } 
       }
-      // TO DO : what to do if the member is inactive in genome? if inactive, add to update active roster sheet
     }
   });
 
   genomeData.forEach(genomeRecord => {
-    // TO DO : what to do if the member is inactive in genome?
+    // TO DO : what to do if the member is inactive in genome? if inactive in genome, do nothing
     if (hrData?.length > 0) {
       const inHR = findMatchingRecord(genomeRecord, hrMaps, policyType);
       const inInsurer = findMatchingRecord(genomeRecord, insurerMaps, policyType);
-      if (!inHR && !inInsurer && !addKeys.has(createUniqueKey(genomeRecord))) {
+      if (!inHR && !inInsurer && !addKeys.has(createUniqueKey(genomeRecord)) && genomeRecord?.is_active === 'Yes') {
         const newRecord = {
           ...genomeRecord,
           slab_id: calculateSlabId(Number(genomeRecord.sum_insured), slabMapping),
@@ -568,7 +586,7 @@ export const reconcileData = (
       }
     } else {
       const inInsurer = findMatchingRecord(genomeRecord, insurerMaps, policyType);
-      if (!inInsurer && !addKeys.has(createUniqueKey(genomeRecord))) {
+      if (!inInsurer && !addKeys.has(createUniqueKey(genomeRecord)) && genomeRecord?.is_active === 'Yes') {
         const newRecord = {
           ...genomeRecord,
           slab_id: calculateSlabId(Number(genomeRecord.sum_insured), slabMapping),
@@ -623,6 +641,7 @@ export const reconcileData = (
     offboardSheet2,
     tobeEndorsed_add,
     tobeEndorsed_add_manual,
+    tobeEndorsed_add_ar_update_manual,
     tobeEndorsed_edit,
     tobeEndorsed_offboard,
     toBeEndorsed_offboard_conf,

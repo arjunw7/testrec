@@ -254,7 +254,7 @@ export const DataTable: React.FC<DataTableProps> = ({
         else if (field.key === 'relationship') {
           newData[originalIndex][field.key] = normalizeRelationship(change.newCell.text);
         } else if (field.key === 'gender') {
-          newData[originalIndex][field.key] = change.newCell.text.toUpperCase();
+          newData[originalIndex][field.key] = change.newCell.text?.toString()?.toUpperCase();
         } else if (field.type === 'date') {
           newData[originalIndex][field.key] = formatDate(change.newCell.text);
         } else {
@@ -352,7 +352,7 @@ export const DataTable: React.FC<DataTableProps> = ({
             const options = getFieldOptions(field);
             const normalizedValue = field.key === 'relationship' 
               ? normalizeRelationship(value)
-              : value.toUpperCase();
+              : value?.toString()?.toUpperCase();
             const option = options.find(opt => opt.value === normalizedValue);
             value = option?.label || value;
           }

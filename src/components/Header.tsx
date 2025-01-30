@@ -39,10 +39,11 @@ export function Header({ company, policy, onRestart, onReconData, onReset, hasRe
     const formattedDate = formatDateToMMM(formatDate(date));
     
     // ADD sheet
-    if (reconData.tobeEndorsed_add?.members?.length > 0 || reconData.tobeEndorsed_add_manual?.members?.length > 0 || reconData.toBeEndorsed_offboard_or_add?.members?.length > 0) {
+    if (reconData.tobeEndorsed_add?.members?.length > 0 || reconData?.tobeEndorsed_add_ar_update_manual?.members?.length > 0 || reconData.tobeEndorsed_add_manual?.members?.length > 0 || reconData.toBeEndorsed_offboard_or_add?.members?.length > 0) {
       const addData = [
         ...reconData.tobeEndorsed_add?.members || [],
         ...reconData.tobeEndorsed_add_manual?.members || [],
+        ...reconData.tobeEndorsed_add_ar_update_manual?.members || [],
         ...reconData.toBeEndorsed_offboard_or_add?.members || []
       ].map(member => ({
         'Employee ID': member.employee_id,

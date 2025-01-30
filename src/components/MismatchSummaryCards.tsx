@@ -17,7 +17,7 @@ export function MismatchSummaryCards({ mismatches }: MismatchSummaryCardsProps) 
   const combinationMismatches = mismatches.filter(m => m.type === 'combination');
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-6">
       {(individualMismatches.length > 0 || combinationMismatches?.length > 0) && (
         <div className="grid grid-cols-4 gap-4">
           {individualMismatches.map((mismatch) => (

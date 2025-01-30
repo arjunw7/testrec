@@ -151,7 +151,6 @@ export function CompanySelection({ onNext }: { onNext: () => void }) {
           </div>
         </div>
       </div>
-
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
     </>
   );

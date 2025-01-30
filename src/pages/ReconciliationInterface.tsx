@@ -338,6 +338,7 @@ function ReconciliationInterfaceContent() {
           perfectMatches: result?.perfectMatches,
           tobeEndorsed_add: result?.tobeEndorsed_add,
           tobeEndorsed_add_manual: result?.tobeEndorsed_add_manual,
+          tobeEndorsed_add_ar_update_manual: result?.tobeEndorsed_add_ar_update_manual,
           tobeEndorsed_edit: result?.tobeEndorsed_edit,
           tobeEndorsed_offboard: result?.tobeEndorsed_offboard,
           toBeEndorsed_offboard_conf: result?.toBeEndorsed_offboard_conf,
@@ -442,8 +443,8 @@ function ReconciliationInterfaceContent() {
             }
             else if (field.key === 'gender') {
               let updatedGender = '';
-              if (['MALE', 'M'].includes(value?.toUpperCase())) updatedGender = 'Male';
-              if (['FEMALE', 'F'].includes(value?.toUpperCase())) updatedGender = 'Female';
+              if (['MALE', 'M'].includes(value?.toString()?.toUpperCase())) updatedGender = 'Male';
+              if (['FEMALE', 'F'].includes(value?.toString()?.toUpperCase())) updatedGender = 'Female';
               transformedRow[field.key] = updatedGender;
             }
             else if (field.key === 'sum_insured') {

@@ -84,7 +84,6 @@ export function PolicySelection({ onNext, onBack }: { onNext: () => void; onBack
             &nbsp;Getting Started
           </Button>
         </div>
-        
         <div className="space-y-4">
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>

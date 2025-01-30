@@ -143,8 +143,8 @@ export const UploadMoreData: React.FC<UploadMoreDataProps> = ({ onDataUploaded, 
             }
           else if (field.key === 'gender') {
             let updatedGender = '';
-            if (['MALE', 'M'].includes(value?.toUpperCase())) updatedGender = 'Male';
-            if (['FEMALE', 'F'].includes(value?.toUpperCase())) updatedGender = 'Female';
+            if (['MALE', 'M'].includes(value?.toString()?.toUpperCase())) updatedGender = 'Male';
+            if (['FEMALE', 'F'].includes(value?.toString()?.toUpperCase())) updatedGender = 'Female';
             transformedRow[field.key] = updatedGender;
           }
           else if (field.key === 'sum_insured') {

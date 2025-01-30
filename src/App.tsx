@@ -6,6 +6,7 @@ import { ReconciliationInterface } from './pages/ReconciliationInterface';
 import { Button } from './components/ui/button';
 import { HelpCircle } from 'lucide-react';
 import { Tooltip, TooltipTrigger,TooltipContent } from './components/ui/tooltip';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const queryClient = new QueryClient();
 
@@ -28,12 +29,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
   if(user) {
     Featurebase("initialize_feedback_widget", {
-      organization: "loophealth", // Replace this with your organization name, copy-paste the subdomain part from your Featurebase workspace url (e.g. https://*yourorg*.featurebase.app)
-      theme: "light", // required
-      placement: "right", // optional - remove to hide the floating button
-      email: user?.email, // optional
-      locale: "en", // Change the language, view all available languages from https://help.featurebase.app/en/articles/8879098-using-featurebase-in-my-language  
-      metadata: null // Attach session-specific metadata to feedback. Refer to the advanced section for the details: https://help.featurebase.app/en/articles/3774671-advanced#7k8iriyap66
+      organization: "loophealth",
+      theme: "light",
+      placement: "right",
+      name: user?.displayName,
+      email: user?.email,
+      locale: "en",
+      metadata: null
     });
     pendo.initialize({
       visitor: {
@@ -72,7 +74,6 @@ function AuthenticatedRoute({ children }: { children: React.ReactNode }) {
   return children;
 }
 
-
 function HelpButton() {
   const { user } = useAuth();
   if(user) {
@@ -96,33 +97,35 @@ function HelpButton() {
     );
   } return null;
 }
+
 export default function App() {
-  
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route 
-              path="/login" 
-              element={
-                <AuthenticatedRoute>
-                  <LoginPage />
-                </AuthenticatedRoute>
-              } 
-            />
-            <Route
-              path="/*"
-              element={
-                <ProtectedRoute>
-                  <ReconciliationInterface />
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-          <HelpButton />
-        </BrowserRouter>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route 
+                path="/login" 
+                element={
+                  <AuthenticatedRoute>
+                    <LoginPage />
+                  </AuthenticatedRoute>
+                } 
+              />
+              <Route
+                path="/*"
+                element={
+                  <ProtectedRoute>
+                    <ReconciliationInterface />
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+            <HelpButton />
+          </BrowserRouter>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
