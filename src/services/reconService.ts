@@ -122,14 +122,11 @@ export const reconService = {
 
   async getReconHistory(page = 1, pageSize = 10, searchTerm = '') {
     try {
+      // First, get the basic recon data with count
       let query = supabase
         .from('recons')
-        .select(`
-          *,
-          recon_files (*),
-          recon_summary (*)
-        `, { count: 'exact' })
-        .not('recon_time', 'is', null); // Only get records with recon_time
+        .select('id, company_name, policy_name, insurer_name, created_by_id, created_by_email, created_by_name, start_time, recon_time, export_time, is_exported', { count: 'exact' })
+        .not('recon_time', 'is', null);
 
       if (searchTerm) {
         query = query.or(
@@ -140,28 +137,53 @@ export const reconService = {
         );
       }
 
-      // Order by recon_time descending
+      // Order by recon_time descending using the optimized index
       query = query.order('recon_time', { ascending: false });
 
-      const { data, error, count } = await query
+      const { data: recons, error: reconsError, count } = await query
         .range((page - 1) * pageSize, page * pageSize - 1);
 
-      if (error) throw error;
+      if (reconsError) throw reconsError;
 
-      // Transform the data to match the expected format
-      const transformedData = data?.map(recon => ({
-        ...recon,
-        time_to_recon: this.calculateDuration(
-          recon.start_time,
-          recon.recon_time
-        ),
-        time_to_export: this.calculateDuration(
-          recon.start_time,
-          recon.export_time
-        ),
-      }));
+      // If we have recons, fetch the related data in separate queries
+      if (recons && recons.length > 0) {
+        const reconIds = recons.map(r => r.id);
 
-      return { data: transformedData, count };
+        // Get files for all recons in this page
+        const { data: files, error: filesError } = await supabase
+          .from('recon_files')
+          .select('*')
+          .in('recon_id', reconIds);
+
+        if (filesError) throw filesError;
+
+        // Get summaries for all recons in this page
+        const { data: summaries, error: summariesError } = await supabase
+          .from('recon_summary')
+          .select('*')
+          .in('recon_id', reconIds);
+
+        if (summariesError) throw summariesError;
+
+        // Merge the data
+        const transformedData = recons.map(recon => ({
+          ...recon,
+          recon_files: files?.filter(f => f.recon_id === recon.id) || [],
+          recon_summary: summaries?.filter(s => s.recon_id === recon.id) || [],
+          time_to_recon: this.calculateDuration(
+            recon.start_time,
+            recon.recon_time
+          ),
+          time_to_export: this.calculateDuration(
+            recon.start_time,
+            recon.export_time
+          ),
+        }));
+
+        return { data: transformedData, count };
+      }
+
+      return { data: [], count: 0 };
     } catch (error) {
       console.error('Failed to get recon history:', error);
       throw error;
