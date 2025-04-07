@@ -65,6 +65,18 @@ export const HR_FIELDS = [
 
 export const INSURER_FIELDS = [
   {
+    key: "is_active",
+    label: "Active",
+    type: "enum",
+    isMandatory: true,
+    config: {
+      options: [
+        { value: "Yes", label: "Yes" },
+        { value: "No", label: "No" }
+      ]
+    }
+  },
+  {
     key: "employee_id",
     label: "Employee ID",
     type: "string",
@@ -204,7 +216,7 @@ export const GENOME_FIELDS = [
     label: "Enrolment Due Date",
     type: "date",
     isMandatory: true
-  }
+  },
 ];
 
 export const ADD_FIELDS: Field[] = [

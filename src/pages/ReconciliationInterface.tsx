@@ -33,6 +33,8 @@ import { SanitizeNamesButton } from '../components/SanitizeNamesButton';
 import { apiClient } from '../services/apiClient';
 import { LoadingDialog } from '@/components/LoadingDialog';
 import { reconService } from '@/services/reconService';
+import { api } from '@/services/api';
+const mode = import.meta.env.VITE_MODE;
 
 // In App.tsx, add this component:
 const ValidationErrorDialog = ({
@@ -158,8 +160,6 @@ function ReconciliationInterfaceContent() {
     edit: '',
     offboard: ''
   });
-  const [showNamePreview, setShowNamePreview] = useState(false);
-  const [nameChanges, setNameChanges] = useState<{ originalName: string; sanitizedName: string; }[]>([]);
 
   
   // Get available tabs based on workflow state
@@ -210,8 +210,14 @@ function ReconciliationInterfaceContent() {
       if (!policy?.id) return;
       setLoadingRoster(true);
       try {
-        const data = await apiClient.getGenomeRoster(company?.id, policy?.id);
-        const roster = data?.data?.users;
+        let roster = null;
+        if(mode === 'DEBUG') {
+          const data = await api.getGenomeRoster(policy?.id);
+          roster = data;  
+        } else {
+          const data = await apiClient.getGenomeRoster(company?.id, policy?.id);
+          roster = data?.data?.users;
+        }
         if (!roster) {
           console.warn('No genome roster data available');
           return;
@@ -313,7 +319,7 @@ function ReconciliationInterfaceContent() {
         companyName: company.name,
         policyId: policy.id,
         policyName: policy.nickName,
-        insurerName: policy.insurerName
+        insurerName: policy.insurerName,
       });
       setCurrentRecon(recon);
     } catch (error) {
@@ -355,19 +361,6 @@ function ReconciliationInterfaceContent() {
           policyType,
         );
   
-        // Save recon results to Supabase
-        await reconService.completeRecon(currentRecon.id, {
-          perfectMatches: result.perfectMatches,
-          tobeEndorsed_add: result.tobeEndorsed_add,
-          tobeEndorsed_add_manual: result.tobeEndorsed_add_manual,
-          tobeEndorsed_add_ar_update_manual: result.tobeEndorsed_add_ar_update_manual,
-          tobeEndorsed_edit: result.tobeEndorsed_edit,
-          tobeEndorsed_offboard: result.tobeEndorsed_offboard,
-          toBeEndorsed_offboard_conf: result.toBeEndorsed_offboard_conf,
-          toBeEndorsed_offboard_conf_manual: result.toBeEndorsed_offboard_conf_manual,
-          toBeEndorsed_offboard_or_add: result.toBeEndorsed_offboard_or_add,
-        });
-  
         // Update local state
         setReconData({
           perfectMatches: result.perfectMatches,
@@ -406,6 +399,21 @@ function ReconciliationInterfaceContent() {
             fields: OFFBOARD_FIELDS
           }
         }));
+        // Save recon results to Supabase
+        reconService.completeRecon(currentRecon.id, {
+          perfectMatches: result.perfectMatches,
+          tobeEndorsed_add: result.tobeEndorsed_add,
+          tobeEndorsed_add_manual: result.tobeEndorsed_add_manual,
+          tobeEndorsed_add_ar_update_manual: result.tobeEndorsed_add_ar_update_manual,
+          tobeEndorsed_edit: result.tobeEndorsed_edit,
+          tobeEndorsed_offboard: result.tobeEndorsed_offboard,
+          toBeEndorsed_offboard_conf: result.toBeEndorsed_offboard_conf,
+          toBeEndorsed_offboard_conf_manual: result.toBeEndorsed_offboard_conf_manual,
+          toBeEndorsed_offboard_or_add: result.toBeEndorsed_offboard_or_add,
+        }).catch(error => {
+          console.error('Failed to complete recon:', error);
+          // File upload failed but we can continue with the mapping
+        });
   
         setActiveTab('summary');
         setIsReconciling(false);
@@ -426,20 +434,16 @@ function ReconciliationInterfaceContent() {
   const handleFileUpload = (source: string) => async (headers: string[], rawData: any[], autoMapDependentSI) => {
     if (!currentRecon) return;
 
-    try {
-      // Create a blob from the raw data
-      const jsonData = JSON.stringify(rawData);
-      const blob = new Blob([jsonData], { type: 'application/json' });
-      const file = new File([blob], `${source}_data.json`, { type: 'application/json' });
-  
-      // Upload file to Supabase
-      await reconService.uploadFile(
+    try {      
+      reconService.uploadFile(
         currentRecon.id,
-        file,
+        rawData,
         source as 'hr' | 'insurer' | 'genome',
         rawData.length
-      );
-
+      ).catch(error => {
+        console.error('Failed to upload file:', error);
+        // File upload failed but we can continue with the mapping
+      });
       setDataSources((prev) => ({
         ...prev,
         [source]: {
@@ -456,6 +460,7 @@ function ReconciliationInterfaceContent() {
       }));
       setShowMapper(source);
       setAutoMapDependentSumInsured(autoMapDependentSI)
+
     } catch (error) {
       console.error('Failed to upload file:', error);
     }
@@ -661,6 +666,7 @@ function ReconciliationInterfaceContent() {
         onReset={handleReset}
         hasReconData={!!reconData}
         reconData={reconData}
+        currentRecon={currentRecon}
       />
 
       <main>
@@ -740,7 +746,7 @@ function ReconciliationInterfaceContent() {
                         {source === 'offboard' && 'Offboard Records'}
                       </h3>
                       <div className="flex gap-2">
-                      {['hr', 'insurer', 'genome'].includes(source) && 
+                      {['hr', 'insurer', 'genome','add', 'edit','offboard'].includes(source) && 
                           dataSources[source]?.data && 
                           dataSources[source]?.data.length > 0 &&
                           hasNameErrors(validateDataSet(dataSources[source]!.data, slabMapping, source)) && (

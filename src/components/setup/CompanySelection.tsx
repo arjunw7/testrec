@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useWorkflow } from '../../context/WorkflowContext';
 import { Company } from '../../types';
 import { apiClient } from '../../services/apiClient';
+import { api } from '../../services/api';
 import { Button } from '../ui/button';
 import { Building2, Check, ChevronsUpDown, Loader2, HelpCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import {
   Popover,
   PopoverContent,
@@ -18,6 +18,7 @@ import {
   CommandItem,
 } from '../ui/command';
 import { HelpModal } from './HelpModal';
+const mode = import.meta.env.VITE_MODE;
 
 export function CompanySelection({ onNext }: { onNext: () => void }) {
   const { company, setCompany } = useWorkflow();
@@ -31,8 +32,13 @@ export function CompanySelection({ onNext }: { onNext: () => void }) {
     const fetchCompanies = async () => {
       setLoading(true);
       try {
-        const data = await apiClient.getCompanies();
-        setCompanies(data?.data?.companies);
+        if(mode === 'DEBUG') {
+          const data = await api.getCompanies(searchTerm);
+          setCompanies(data);
+        } else {
+          const data = await apiClient.getCompanies();
+          setCompanies(data?.data?.companies);
+        }
       } catch (error) {
         console.error('Error fetching companies:', error);
       } finally {

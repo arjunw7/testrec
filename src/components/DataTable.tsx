@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "./ui/select";
 import { UploadMoreData } from './UploadMoreData';
+import { DownloadDataButton } from './DownloadDataButton';
 import { Label } from './ui/label';
 
 interface DataTableProps {
@@ -120,7 +121,7 @@ export const DataTable: React.FC<DataTableProps> = ({
 
   const isCellEditable = (field: string) => {
     if (!isInSummary) {
-      if(field === 'slab_id' || field === 'user_id') return false;
+      if(field === 'slab_id' || field === 'user_id' || field === 'is_active') return false;
       return true
     };
     switch (summaryType) {
@@ -414,6 +415,10 @@ export const DataTable: React.FC<DataTableProps> = ({
           )}
         </div>
         <div className="flex items-center gap-2">
+          <DownloadDataButton 
+            data={data}
+            validationResults={validationResults}
+          />
           {selectedRows.length > 0 && (
             <>
               <Button

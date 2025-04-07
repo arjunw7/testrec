@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useWorkflow } from '../../context/WorkflowContext';
 import { Policy } from '../../types';
 import { apiClient } from '../../services/apiClient';
+import { api } from '../../services/api';
 import { Button } from '../ui/button';
 import { FileText, Check, ChevronsUpDown, Loader2, HelpCircle } from 'lucide-react';
 import {
@@ -17,6 +18,7 @@ import {
   CommandItem,
 } from '../ui/command';
 import { HelpModal } from './HelpModal';
+const mode = import.meta.env.VITE_MODE;
 
 export function PolicySelection({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
   const { company, policy, setPolicy, setSlabMapping, setPolicyType } = useWorkflow();
@@ -30,11 +32,15 @@ export function PolicySelection({ onNext, onBack }: { onNext: () => void; onBack
   useEffect(() => {
     const fetchPolicies = async () => {
       if (!company) return;
-      
       setLoading(true);
       try {
-        const data = await apiClient.getPolicies(company.id);
-        setPolicies(data?.data);
+        if(mode === 'DEBUG') {
+          const data = await api.getPolicies(company.id);
+          setPolicies(data)
+        } else {
+          const data = await apiClient.getPolicies(company.id);
+          setPolicies(data?.data);
+        }
       } catch (error) {
         console.error('Error fetching policies:', error);
       } finally {

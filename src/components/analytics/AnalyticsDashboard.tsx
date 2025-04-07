@@ -18,8 +18,8 @@ import { Clock, Users, Building2 } from 'lucide-react';
 
 interface AnalyticsData {
   totalRecons: number;
-  avgReconTime: number;
-  avgExportTime: number;
+  p90ReconTime: number;
+  p90ExportTime: number;
   insurerSplit: { [key: string]: number };
   userSplit: { [key: string]: number };
   dailyRecons: { [key: string]: number };
@@ -43,14 +43,14 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
     }));
 
   const insurerData = Object.entries(data.insurerSplit)
-    .sort((a, b) => b[1] - a[1]) // Sort by count descending
+    .sort((a, b) => b[1] - a[1])
     .map(([name, value]) => ({
       name,
       value
     }));
 
   const userData = Object.entries(data.userSplit)
-    .sort((a, b) => b[1] - a[1]) // Sort by count descending
+    .sort((a, b) => b[1] - a[1])
     .map(([name, value]) => ({
       name,
       value
@@ -78,9 +78,9 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
               <Clock className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h3 className="text-sm font-medium text-muted-foreground">Average Time to Reconcile</h3>
+              <h3 className="text-sm font-medium text-muted-foreground">P90 Time to Reconcile</h3>
               <p className="text-2xl font-bold text-primary mt-1">
-                {formatDuration(Math.round(data.avgReconTime))}
+                {formatDuration(Math.round(data.p90ReconTime))}
               </p>
             </div>
           </div>
@@ -92,9 +92,9 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
               <Clock className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h3 className="text-sm font-medium text-muted-foreground">Average Time to Export</h3>
+              <h3 className="text-sm font-medium text-muted-foreground">P90 Time to Export</h3>
               <p className="text-2xl font-bold text-primary mt-1">
-                {formatDuration(Math.round(data.avgExportTime))}
+                {formatDuration(Math.round(data.p90ExportTime))}
               </p>
             </div>
           </div>
@@ -165,7 +165,6 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
                     />
                   ))}
                 </Bar>
-                <Legend />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -201,7 +200,6 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
                     />
                   ))}
                 </Bar>
-                <Legend />
               </BarChart>
             </ResponsiveContainer>
           </div>

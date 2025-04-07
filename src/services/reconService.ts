@@ -49,17 +49,48 @@ export const reconService = {
       const excelBuffer = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
       const file = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       
-      const fileName = `${fileType}_data_${Date.now()}.xlsx`;
+      const fileName = `${fileType}_data.xlsx`;
       const path = `${reconId}/${fileType}/${fileName}`;
+
+      // Delete existing file if it exists
+      const { data: existingFiles, error: fetchError } = await supabase
+        .from('recon_files')
+        .select('id, storage_path')
+        .eq('recon_id', reconId)
+        .eq('file_type', fileType);
+
+      if (fetchError) throw fetchError;
+
+      // Delete existing files from storage and database
+      if (existingFiles && existingFiles.length > 0) {
+        // Delete from storage
+        for (const existingFile of existingFiles) {
+          await supabase.storage
+            .from('recon-files')
+            .remove([existingFile.storage_path]);
+        }
+
+        // Delete from database
+        await supabase
+          .from('recon_files')
+          .delete()
+          .eq('recon_id', reconId)
+          .eq('file_type', fileType);
+      }
       
-      // Upload file to storage
+      // Upload new file to storage
       const { data: storageData, error: storageError } = await supabase.storage
         .from('recon-files')
         .upload(path, file, {
-          contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          cacheControl: '3600',
+          upsert: true // Enable overwrite
         });
 
-      if (storageError) throw storageError;
+      if (storageError) {
+        console.error('Storage upload failed:', storageError);
+        throw storageError;
+      }
 
       // Save file metadata
       const { data: fileData, error: fileError } = await supabase
@@ -74,11 +105,18 @@ export const reconService = {
         .select()
         .single();
 
-      if (fileError) throw fileError;
+      if (fileError) {
+        console.error('Metadata insert failed:', fileError);
+        // If metadata insert fails, try to clean up the uploaded file
+        await supabase.storage
+          .from('recon-files')
+          .remove([path]);
+        throw fileError;
+      }
       return fileData;
     } catch (error) {
-      console.error('Failed to upload file:', error);
-      throw new Error('Failed to upload file');
+      console.error('File upload failed:', error);
+      throw error;
     }
   },
 
@@ -90,18 +128,20 @@ export const reconService = {
           *,
           recon_files (*),
           recon_summary (*)
-        `, { count: 'exact' });
+        `, { count: 'exact' })
+        .not('recon_time', 'is', null); // Only get records with recon_time
 
       if (searchTerm) {
-        query = query.or(`
-          company_name.ilike.%${searchTerm}%,
-          policy_name.ilike.%${searchTerm}%,
-          insurer_name.ilike.%${searchTerm}%
-        `);
+        query = query.or(
+          `company_name.ilike.%${searchTerm}%,` +
+          `policy_name.ilike.%${searchTerm}%,` +
+          `insurer_name.ilike.%${searchTerm}%,` +
+          `created_by_name.ilike.%${searchTerm}%`
+        );
       }
 
-      // Order by start_time descending
-      query = query.order('start_time', { ascending: false });
+      // Order by recon_time descending
+      query = query.order('recon_time', { ascending: false });
 
       const { data, error, count } = await query
         .range((page - 1) * pageSize, page * pageSize - 1);
@@ -128,20 +168,34 @@ export const reconService = {
     }
   },
 
+  calculateP90(values: number[]): number {
+    if (values.length === 0) return 0;
+    
+    // Sort values in ascending order
+    const sorted = [...values].sort((a, b) => a - b);
+    
+    // Calculate the index for P90
+    const index = Math.ceil(sorted.length * 0.9) - 1;
+    
+    // Return the P90 value
+    return sorted[index];
+  },
+
   async getAnalytics(startDate: Date, endDate: Date) {
     try {
       const { data, error } = await supabase
         .from('recons')
         .select('*')
-        .gte('start_time', startDate.toISOString())
-        .lte('start_time', endDate.toISOString());
+        .not('recon_time', 'is', null) // Only get records with recon_time
+        .gte('recon_time', startDate.toISOString())
+        .lte('recon_time', endDate.toISOString());
 
       if (error) throw error;
 
       // Calculate analytics
       const totalRecons = data.length;
       
-      // Calculate average recon time
+      // Calculate P90 recon time
       const reconTimes = data
         .filter(recon => recon.recon_time && recon.start_time)
         .map(recon => this.calculateDurationInSeconds(
@@ -149,11 +203,9 @@ export const reconService = {
           recon.recon_time
         ));
       
-      const avgReconTime = reconTimes.length > 0 
-        ? reconTimes.reduce((acc, time) => acc + time, 0) / reconTimes.length
-        : 0;
+      const p90ReconTime = this.calculateP90(reconTimes);
 
-      // Calculate average export time
+      // Calculate P90 export time
       const exportTimes = data
         .filter(recon => recon.export_time && recon.start_time)
         .map(recon => this.calculateDurationInSeconds(
@@ -161,9 +213,7 @@ export const reconService = {
           recon.export_time
         ));
       
-      const avgExportTime = exportTimes.length > 0
-        ? exportTimes.reduce((acc, time) => acc + time, 0) / exportTimes.length
-        : 0;
+      const p90ExportTime = this.calculateP90(exportTimes);
 
       // Group by insurer
       const insurerSplit = data.reduce((acc, recon) => {
@@ -180,7 +230,7 @@ export const reconService = {
 
       // Group by day
       const dailyRecons = data.reduce((acc, recon) => {
-        const date = new Date(recon.start_time)
+        const date = new Date(recon.recon_time)
           .toISOString()
           .split('T')[0];
         acc[date] = (acc[date] || 0) + 1;
@@ -189,8 +239,8 @@ export const reconService = {
 
       return {
         totalRecons,
-        avgReconTime,
-        avgExportTime,
+        p90ReconTime,
+        p90ExportTime,
         insurerSplit,
         userSplit,
         dailyRecons

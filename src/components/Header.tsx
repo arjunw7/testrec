@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { RotateCcw, RefreshCw, User, Building2, Wallet, Download, History, ArrowLeft } from 'lucide-react';
 import { Button } from './ui/button';
 import {

@@ -164,7 +164,9 @@ export const ColumnMapper: React.FC<ColumnMapperProps> = ({
           <div className="grid grid-cols-[1fr,300px] gap-8 overflow-y-auto flex-1 p-1">
             <div className="space-y-4">
               <h3 className="font-semibold mb-4">Fields to Map</h3>
-              {filteredFields.map((field) => {
+              {filteredFields
+              ?.filter((item) => item?.key !== 'is_active')
+              .map((field) => {
                 const mappedHeaders = getMappedHeaders();
                 const isMapped = isFieldMapped(field);
                 const isMissing = field.isMandatory && !isMapped;

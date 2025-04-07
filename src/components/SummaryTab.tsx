@@ -143,7 +143,7 @@ export function SummaryTab({ reconData }: SummaryTabProps) {
     if (lists.length === 0) return null;
     const mismatchSummary = getMismatchSummary(reconData.tobeEndorsed_edit?.members || []);
     return (
-      <div className="space-y-4 -mt-6">
+      <div className="space-y-4 -mt-4">
         <h3 className="text-xl font-semibold">{title}</h3>
         <Accordion type="single" collapsible className="space-y-4">
           {lists.map((list, index) => (

@@ -400,9 +400,8 @@ export const reconcileData = (
       const genomeRecord = findMatchingRecord(hrRecord, genomeMaps, policyType);
 
       if (insurerRecord && genomeRecord) {
-        // TO DO : what to do if the member is inactive in genome? Is inactive in genome, update active roster.
         const mismatches = compareFields(hrRecord, insurerRecord, genomeRecord, policyType);
-        if (mismatches.fields?.length > 0) {
+        if (mismatches.fields?.length > 0 && genomeRecord?.is_active === 'Yes' && insurerRecord?.is_active === 'Yes') {
           dataMismatch.push({
             ...hrRecord,
             user_id: genomeRecord?.user_id,
@@ -422,12 +421,12 @@ export const reconcileData = (
             genome_values: mismatches.genome.join(', ')
           });
         }
-        if (mismatches.fields?.length === 0 && genomeRecord?.is_active === 'Yes') {
+        if (mismatches.fields?.length === 0 && genomeRecord?.is_active === 'Yes' && insurerRecord?.is_active === 'Yes') {
           perfectlyMatchedMembers.push({
             ...genomeRecord,
             slab_id: calculateSlabId(Number(hrRecord.sum_insured), slabMapping)
           });
-        } else if(mismatches.fields?.length === 0 && genomeRecord?.is_active === 'No') {
+        } else if(mismatches.fields?.length === 0 && genomeRecord?.is_active === 'No' && insurerRecord?.is_active === 'Yes') {
           const newRecord = {
             ...genomeRecord,
             slab_id: calculateSlabId(Number(genomeRecord.sum_insured), slabMapping),
@@ -440,6 +439,7 @@ export const reconcileData = (
             remark: 'Inactive in Genome but present in HR/Insurer roster.',
           });
        }
+       //TO DO: what to do if members in inactive in insurer and active in genome - ADD THEM TO ADD SHEET IN GENOME
       } else if (!insurerRecord && !genomeRecord) {
         // New addition
         if (!isDuplicate(hrRecord, addData)) {
@@ -451,7 +451,7 @@ export const reconcileData = (
           addData.push(newRecord);
           tobeEndorsed_add.members.push(newRecord);
         }
-      } else if (insurerRecord && !genomeRecord) {
+      } else if (insurerRecord && !genomeRecord && insurerRecord?.is_active === 'Yes') {
         if (!addKeys.has(createUniqueKey(hrRecord))) {
           const newRecord = {
             ...hrRecord,
@@ -462,8 +462,8 @@ export const reconcileData = (
           addKeys.add(createUniqueKey(hrRecord));
           tobeEndorsed_add_manual.members.push(newRecord);
         }
-      } else if (!insurerRecord && genomeRecord) {
-        // TO DO -> DONE : what to do if the member is inactive in genome? if inactive, do nothing
+        //TO DO: what to do if members in inactive in insurer and missing in genome - ADD THEM TO ADD SHEET FOR HR CONFIRMATION
+      } else if (!insurerRecord && genomeRecord && genomeRecord?.is_active === 'Yes') {
         if (!addKeys.has(createUniqueKey(hrRecord))) {
           const newRecord = {
             ...hrRecord,
@@ -474,6 +474,7 @@ export const reconcileData = (
           addKeys.add(createUniqueKey(hrRecord));
           tobeEndorsed_add_manual.members.push(newRecord);
         }
+        //TO DO: what to do if members in inactive in genome and missing in insurer - ADD THEM TO ADD SHEET FOR HR CONFIRMATION
       }
     });
   } else {
@@ -483,7 +484,7 @@ export const reconcileData = (
       if (genomeRecord) {
         // TO DO : what to do if the member is inactive in genome? if inactive, add to update active roster sheet
         const mismatches = compareFields(null, insurerRecord, genomeRecord, policyType);
-        if (mismatches.fields?.length > 0) {
+        if (mismatches.fields?.length > 0 && genomeRecord?.is_active === 'Yes' && insurerRecord?.is_active === 'Yes') {
           dataMismatch.push({
             ...genomeRecord,
             slab_id: calculateSlabId(Number(genomeRecord.sum_insured), slabMapping),
@@ -501,12 +502,12 @@ export const reconcileData = (
             genome_values: mismatches.genome.join(', ')
           });
         }
-        if (mismatches.fields?.length === 0 && genomeRecord?.is_active === 'Yes') {
+        if (mismatches.fields?.length === 0 && genomeRecord?.is_active === 'Yes' && insurerRecord?.is_active === 'Yes') {
           perfectlyMatchedMembers.push({
             ...genomeRecord,
             slab_id: calculateSlabId(Number(genomeRecord.sum_insured), slabMapping)
           });
-        } else if(mismatches.fields?.length === 0 && genomeRecord?.is_active === 'No') {
+        } else if(mismatches.fields?.length === 0 && genomeRecord?.is_active === 'No' && insurerRecord?.is_active === 'Yes') {
           const newRecord = {
             ...genomeRecord,
             slab_id: calculateSlabId(Number(genomeRecord.sum_insured), slabMapping),
@@ -519,6 +520,7 @@ export const reconcileData = (
             remark: 'Inactive in Genome but present in HR/Insurer roster.',
           });
         }
+        // TO DO: what to do if member is inactive in insurer but active in genome - ADD TO OFFBOARD SHEET
       }
     });
   }
@@ -529,7 +531,7 @@ export const reconcileData = (
       const inHR = findMatchingRecord(insurerRecord, hrMaps, policyType);
       const inGenome = findMatchingRecord(insurerRecord, genomeMaps, policyType);
   
-      if (!inHR && inGenome && !isDuplicate(insurerRecord, offboardSheet)) {
+      if (!inHR && inGenome && !isDuplicate(insurerRecord, offboardSheet) && (insurerRecord?.is_active === 'Yes' || inGenome?.is_active === 'Yes')) {
         // TO DO : what to do if the member is inactive in genome?
         if (!offboardKeys.has(createUniqueKey(insurerRecord))) {
           const offboardRecord = {
@@ -542,7 +544,7 @@ export const reconcileData = (
           offboardKeys.add(createUniqueKey(insurerRecord));
           toBeEndorsed_offboard_conf.members.push(offboardRecord);
         }
-      } else if (!inHR && !inGenome) {
+      } else if (!inHR && !inGenome && insurerRecord?.is_active === 'Yes') {
         const offboardRecord = {
           ...insurerRecord,
           slab_id: calculateSlabId(Number(insurerRecord.sum_insured), slabMapping),
@@ -552,9 +554,8 @@ export const reconcileData = (
         toBeEndorsed_offboard_conf_manual.members.push(offboardRecord);
       }
     } else {
-      
       const inGenome = findMatchingRecord(insurerRecord, genomeMaps, policyType);
-      if (!inGenome) {
+      if (!inGenome && insurerRecord?.is_active === 'Yes') {
         if (!addKeys.has(createUniqueKey(insurerRecord))) {
           const newRecord = {
             ...insurerRecord,
@@ -570,7 +571,6 @@ export const reconcileData = (
   });
 
   genomeData.forEach(genomeRecord => {
-    // TO DO : what to do if the member is inactive in genome? if inactive in genome, do nothing
     if (hrData?.length > 0) {
       const inHR = findMatchingRecord(genomeRecord, hrMaps, policyType);
       const inInsurer = findMatchingRecord(genomeRecord, insurerMaps, policyType);
@@ -586,7 +586,7 @@ export const reconcileData = (
       }
     } else {
       const inInsurer = findMatchingRecord(genomeRecord, insurerMaps, policyType);
-      if (!inInsurer && !addKeys.has(createUniqueKey(genomeRecord)) && genomeRecord?.is_active === 'Yes') {
+      if ((!inInsurer || inInsurer?.is_active === 'No') && !addKeys.has(createUniqueKey(genomeRecord)) && genomeRecord?.is_active === 'Yes') {
         const newRecord = {
           ...genomeRecord,
           slab_id: calculateSlabId(Number(genomeRecord.sum_insured), slabMapping),

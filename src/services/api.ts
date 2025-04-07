@@ -27,6 +27,7 @@ export const api = {
       nickName: policy.nickName,
       policyType: policy.policyType,
       insurerLogo: policy.insurerLogo,
+      insurerName: policy.insurerName,
       sumAssuredSlabs: policy.sumAssuredSlabs
     }));
   },

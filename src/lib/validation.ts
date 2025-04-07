@@ -26,7 +26,7 @@ const MOBILE_REGEX = /^[0-9]{10}$/;
 const DATE_REGEX = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{2}$/;
 const FORBIDDEN_NAME_PREFIXES = ['mr.', 'mrs.', 'dr.'];
 
-const isValidDate = (dateStr: string): boolean => {
+export const isValidDate = (dateStr: string): boolean => {
   // First try to standardize the date format
   const standardizedDate = formatToStandardDate(dateStr);
   

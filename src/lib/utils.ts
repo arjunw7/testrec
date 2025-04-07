@@ -72,6 +72,20 @@ export function formatToStandardDate(dateStr: string): string {
   return cleanDate;
 }
 
+// Convert DD/MM/YY to Date object
+export function standardDateToDate(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  
+  const [day, month, year] = dateStr.split('/').map(Number);
+  if (!day || !month || !year) return null;
+  
+  // Convert 2-digit year to full year
+  const fullYear = year < 50 ? 2000 + year : 1900 + year;
+  
+  // Create date - note that months are 0-based in JavaScript
+  return new Date(fullYear, month - 1, day);
+}
+
 // Format duration in seconds to human readable format
 export function formatDuration(seconds: number): string {
   if (!seconds) return '0s';
@@ -161,14 +175,13 @@ export const GENDER_OPTIONS = [
   { value: 'OTHER', label: 'Other' }
 ];
 
-  
 export const normalizeRelationship = (relationship: string): string => {
   if (!relationship) return '';
   
   const normalized = relationship?.toString()?.toUpperCase()?.trim();
   
   // Child relationships
-  if (['SON', 'DAUGHTER', 'CHILDREN', 'REL_04', 'UDTR', 'SONM'].includes(normalized)) {
+  if (['SON', 'DAUGHTER', 'CHILDREN', 'REL_04', 'UDTR', 'SONM', 'Child 1', 'Child 2', 'Child 3', 'CHILD1', 'CHILD2', 'CHILD3'].includes(normalized)) {
     return 'CHILD';
   }
   
@@ -178,7 +191,7 @@ export const normalizeRelationship = (relationship: string): string => {
   }
   
   // Parent relationships
-  if (['FATHER', 'MOTHER', 'EMOT', 'EFAT', 'REL_05', 'REL_06', 'REL_11','REL_12'].includes(normalized)) {
+  if (['FATHER', 'MOTHER', 'EMOT', 'EFAT', 'REL_05', 'REL_06','REL_02', 'REL_11','REL_12'].includes(normalized)) {
     return 'PARENT';
   }
 
@@ -191,11 +204,11 @@ export const normalizeRelationship = (relationship: string): string => {
     return normalized;
   }
 
-  if (['REL_01', 'MMBR'].includes(normalized)) {
+  if (['REL_01', 'MMBR', 'Employee'].includes(normalized)) {
     return 'SELF';
   }
   
-  return ''; // Default to SELF if unknown
+  return ''; // Default to empty if unknown
 };
 
 export function excelDateToJSDate(serial: number): string {
@@ -221,7 +234,6 @@ export const isRequiredDataAvailable = (
   return !hasHrRoster ? (hasInsurer && hasGenome) : (hasInsurer && hasGenome && hasHr);
 };
 
-
 export const filterFieldsByPolicyType = (fields: Field[], policyType: string | null): Field[] => {
   if (!policyType || policyType === 'GMC') {
     return fields;
@@ -229,7 +241,6 @@ export const filterFieldsByPolicyType = (fields: Field[], policyType: string | n
   
   return fields.filter(field => field.key !== 'date_of_birth_dd_mmm_yyyy');
 };
-
 
 export function formatDateToMMM(date: string): string {
   if (!date) return '';
@@ -296,4 +307,70 @@ export const cleanValue = (value: any): string | null => {
     return null;
   }
   return value;
+};
+
+export type InsurerStatusConfig = {
+  field: string;
+  operator: 'equals' | 'not_equals' | 'empty' | 'not_empty' | 'is_in_future' | 'in' | 'not_in';
+  value?: string | string[];
+};
+
+export const INSURER_STATUS_CONFIGS: { [key: string]: InsurerStatusConfig } = {
+  'Aditya Birla Health Insurance Co ltd': { field: 'Status  (Active /Inactive)', operator: 'in', value: ['ACTIVE'] },
+  'Aditya Birla Sun Life Insurance Company Ltd': { field: 'Status  (Active /Inactive)', operator: 'in', value: ['ACTIVE'] },
+  'Bajaj Allianz': { field: 'Member Status', operator: 'in', value: ['ACTIVE'] },
+  'Bajaj Allianz General Insurance Co. Ltd.': { field: 'Member Status', operator: 'in', value: ['ACTIVE'] },
+  'Care Health Insurance': { field: 'DTETRM', operator: 'empty' },
+  'Cholamandalam MS General Insurance': { field: 'Flag Status', operator: 'in', value: ['A'] },
+  'Edelweiss General Insurance Co.Ltd.': { field: 'Status', operator: 'in', value: ['Active'] },
+  'Zuno General Insurance (Edelweiss)': { field: 'Status', operator: 'in', value: ['Active'] },
+  'Edelweiss Tokio Life Insurance Co. Ltd': { field: 'Coverage Status', operator: 'in', value: ['Active'] },
+  'Future Generali India Insurance Co Ltd': { field: 'Member Status', operator: 'in', value: ['Active'] },
+  'Go Digit': { field: 'POLICY_STATUS', operator: 'in', value: ['A'] },
+  'HDFC ERGO General Insurance Co. Ltd.': { field: 'COVER UNDER', operator: 'not_in', value: ['Delete Member'] },
+  'ICICI Lombard': { field: 'UHID_STATUS', operator: 'in', value: ['ACTIVE'] },
+  'ICICI Prudential Life Insurance': { field: 'memberStatus', operator: 'in', value: ['Inforce'] },
+  'Iffco Tokio General Insurance Co Ltd': { field: 'Action', operator: 'in', value: ['A'] },
+  'Kotak Mahindra General Insurance Co. Ltd.': { field: 'benef_status', operator: 'in', value: ['ACTIVE'] },
+  'Magma HDI General Insurance Co Ltd': { field: 'DELETED', operator: 'equals', value: 'FALSE' },
+  'Manipal Cigna Health Insurance Co Ltd': { field: 'Status', operator: 'in', value: ['ACTIVE'] },
+  'Max Life Insurance Co Ltd': { field: 'Status', operator: 'in', value: ['ACTIVE'] },
+  'Niva Bupa': { field: 'MemberStatus', operator: 'in', value: ['ACTIVE'] },
+  'Reliance General Insurance': { field: 'EmpStatus', operator: 'in', value: ['Active'] },
+  'SBI General Insurance': { field: 'Status', operator: 'in', value: ['Active'] },
+  'Tata AIG General Insurance Co. Ltd.': { field: 'FLAGSTATUS', operator: 'in', value: ['A'] },
+  'The Oriental Insurance Co Ltd': { field: 'RISK EFF TO DT', operator: 'is_in_future' },
+  'Universal Sompo General Insurance Co. Ltd.': { field: 'Status', operator: 'in', value: ['A'] },
+  'United India Insurance Co Ltd': { field: 'STATUS', operator: 'not_in', value: ['D'] }
+};
+
+// Special case for Magma HDI based on policy type
+export const getMagmaHDIConfig = (policyType: string): InsurerStatusConfig => {
+  if (policyType === 'GPA') {
+    return { field: 'Status', operator: 'equals', value: 'A' };
+  }
+  return { field: 'DELETED', operator: 'equals', value: 'FALSE' };
+};
+
+// Add these insurers that always return active status
+export const ALWAYS_ACTIVE_INSURERS = new Set([
+  'Pramerica Life Insurance',
+  'Royal Sundaram General Insurance Co Ltd',
+  'Shriram General Insurance Co Ltd',
+  'Star Health'
+]);
+
+export const getInsurerStatusConfig = (insurerName: string, policyType?: string): InsurerStatusConfig | null => {
+  // Handle special case for Magma HDI
+  if (insurerName === 'Magma HDI General Insurance Co Ltd' && policyType) {
+    return getMagmaHDIConfig(policyType);
+  }
+
+  // Handle insurers that are always active
+  if (ALWAYS_ACTIVE_INSURERS.has(insurerName)) {
+    return null;
+  }
+
+  // Return the standard config or null if not found
+  return INSURER_STATUS_CONFIGS[insurerName] || null;
 };
